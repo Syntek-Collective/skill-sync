@@ -3,14 +3,15 @@ import React, {useState} from 'react';
 interface ResumeModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (text: string) => void
+    onSave: (text: string, file?: File) => void;
 }
 
 const ResumeModal: React.FC<ResumeModalProps> = ({isOpen, onClose, onSave}) => {
     const [resumeText, setResumeText] = useState<string>('');
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
     // If isOpen is false, return null to hide from the UI
-    if (!isOpen) return;
+    if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 bg-green-900 bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -25,15 +26,24 @@ const ResumeModal: React.FC<ResumeModalProps> = ({isOpen, onClose, onSave}) => {
                     <input 
                         type="file"
                         accept=".pdf, .docx"
+                        onChange={(e) => {
+                            if (e.target.files && e.target.files.length > 0) {
+                                setSelectedFile(e.target.files[0])
+                            }
+                        }}
                         className="block w-full text-sm text-green-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
                     />
+
+                    <p className="text-xs text-gray-500 mt-2">
+                        {selectedFile ? `Selected: ${selectedFile.name}` : "No file selected"}
+                    </p>
                 </div>
 
                 <p className="text-sm text-gray-400 mb-2">Paste text below:</p>
 
                 {/* Render a textarea. On change, update the local 'resumeText' state  */}
                 <textarea 
-                    className="w-full h-40 border-2 border-2 border-green-200 rounded-lg p-2 mb-4 focus:border-green-500 outline-none"
+                    className="w-full h-40 border-2 border-green-200 rounded-lg p-2 mb-4 focus:border-green-500 outline-none"
                     placeholder="Paste your resume text here..."
                     value={resumeText}
                     onChange={(e) => setResumeText(e.target.value)}
@@ -46,8 +56,8 @@ const ResumeModal: React.FC<ResumeModalProps> = ({isOpen, onClose, onSave}) => {
                     </button>
                     {/* On Save click, call onSave(resumeText) the call onClose(). */}
                     <button
-                        onClick={() => {onSave(resumeText); onClose();}}
-                        className="px-6 py-2 bg-green-700 text-white rounded-full hover:bg-green-800 transition-color"
+                        onClick={() => {onSave(resumeText, selectedFile ?? undefined); onClose();}}
+                        className="px-6 py-2 bg-green-700 text-white rounded-full hover:bg-green-800 transition-colors"
                     >
                         Save Resume
                     </button>
