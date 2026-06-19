@@ -90,7 +90,7 @@ Before opening a pull request:
    git switch main
    git pull
    git switch your-branch-name
-   git merge dev
+   git merge main
 ```
 
 2. Run `npm install` in both `client/` and `server/` to make sure dependencies are up to date
