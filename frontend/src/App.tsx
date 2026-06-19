@@ -115,4 +115,28 @@ function App() {
   const [historyArray, setHistoryArray] = useState([])
 
 
-  
+  return (
+    <main>
+
+      {/* ===== ALWAYS SHOWS (no condition) ===== */}
+      <h1>Skill Sync</h1>
+
+
+
+      {/* ===== MASTER SWITCH: logged in or not? ===== */}
+
+      {isLoggedIn ? (
+        <p>{userName}, let's turn gaps into goals.</p>
+
+      ) : (
+        <p>Align your skills. Accelerate your career</p>
+      )}
+
+
+
+
+    </main>
+  );
+}
+
+export default App;
