@@ -1,13 +1,5 @@
 import React from 'react';
-import {Button} from './Button'
 
-// Design Constants
-const COLORS = {
-    overlay: 'rgba(0, 0, 0, 0.5)',
-    modalBackground: '#ffffff',
-    primaryText: '#1e293b',
-    accent: '#4f46e5'
-};
 
 interface ModalProps {
     isOpen: boolean;
@@ -21,42 +13,26 @@ export const Modal: React.FC<ModalProps> = ({isOpen, onClose, title, children}) 
     if (!isOpen) return null;
 
     return (
-        <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            backgroundColor: COLORS.overlay,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000
-        }}>
-            <div style={{
-                backgroundColor: COLORS.modalBackground,
-                padding: '2rem',
-                borderRadius: '8px',
-                maxWidth: '500px',
-                width: '90%',
-                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-            }}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+
+            {/* The Modal Card */}
+            <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl relative p-8">
+
+                {/* Close Button - Absolute positioning to the top right */}
+                <button 
+                    onClick={onClose}
+                    className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl font-light"
+                    aria-label="Close"
+                >
+                    &times;
+                </button>
 
                 {/* Header Section */}
-                <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '1rem'}}>
-                    <h2 style={{color: COLORS.primaryText, margin: 0}}>{title}</h2>
-                    <Button onClick={onClose} label="x" />
-                </div>
+                <h2 className="text-xl font-bold mb-6 text-gray-800">{title}</h2>
 
                 {/* Content Section */}
-                <div style={{marginBottom: '2rem'}}>
+                <div className="mb-6">
                     {children}
-                </div>
-
-                {/* Action Footer */}
-                <div style={{display: 'flex', justifyContent: 'flex-end', gap: '10px'}}>
-                    <Button onClick={onClose} label="Cancel" />
-                    <Button onClick={() => console.log('Action performed')} label="Confirm" />
                 </div>
             </div>
         </div>
