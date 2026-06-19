@@ -27,14 +27,24 @@
 
 */
 
+/*
+
+  State
+  What does the app need to track over time (and change the UI based on)?
+
+  Since this application relies on conditional rendering 
+
+*/
+
 import Button from "./components/ui/Button";
+
 
 function App() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center gap-8">
-      <h1 className="text-5xl font-bold">SkillSync</h1>
+    <div>
       <Button>Upload Resume</Button>
-    </main>
+    </div>
+      
   );
 }
 
