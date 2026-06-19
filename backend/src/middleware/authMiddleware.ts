@@ -1,0 +1,1 @@
+//checks if the user is logged in (protects routes)

@@ -105,8 +105,8 @@ import { useState } from 'react'
 import Button from './components/ui/Button'
 
 import AnalysisResult from './components/AnalysisResult'
-import ResumeModal from './components/resumeModal'
-//import JobPostingModal from './components/jobPostingModal'
+import ResumeModal from './components/ResumeModal'
+//import JobPostingModal from './components/JobPostingModal'
 //import AuthModal from './components/AuthModal'
 //import HistoryModal from './components/HistoryModal'
 
@@ -121,6 +121,13 @@ function App() {
   const [analysisResponse, setAnalysisResponse] = useState('')
   const [historyArray, setHistoryArray] = useState([])
 
+  //PLACEHOLDER FUNCTION UNTIL BACKEND IS BUILT
+
+  //REAL FUNCTION
+  const handleAnalyze = async(jobQuery: string) => {
+    const response = await fetch()
+  }
+
 
   return (
     <main>
@@ -131,12 +138,22 @@ function App() {
 
 
       {/* ===== MASTER SWITCH: logged in or not? ===== */}
-
       {isLoggedIn ? (
-        <p>{userName}, let's turn gaps into goals.</p>
+        <div>
+          <p>{userName}, leave nothing to chance.</p>
 
+          <Button onClick={()=>{setIsResumeModalOpen(true)}}>Upload Resume</Button>
+          <Button onClick={()=>{setIsJobModalOpen(true)}}>Upload Job Posting</Button>
+          <Button onClick={()=>{setIsHistoryModalOpen(true)}}>Analysis History</Button>
+
+          <AnalysisResult llmResponse={analysisResponse}/>
+
+          { isResumeModalOpen && <ResumeModal isOpen={isResumeModalOpen} onClose={()=>{setIsResumeModalOpen(false)}} onSave={(file)=>{setResumeFile(file)}}/>}
+          { isJobModalOpen && <JobPostingModal isOpen={isJobModalOpen} onClose={()=>{setIsJobModalOpen(false)}} onAnalyze={}/>}
+          { isHistoryModalOpen && <HistoryModal isOpen={isHistoryModalOpen} onClose={()=>{setIsHistoryModalOpen(false)}} historyArr={historyArray}/>}
+        </div>
       ) : (
-        <p>Align your skills. Accelerate your career</p>
+        <p>Align your skills. Accelerate your career.</p>
       )}
 
 
