@@ -1,4 +1,6 @@
 import React, {useState} from 'react';
+import {Modal} from './ui/Modal';
+import Button from './ui/Button'
 
 interface ResumeModalProps {
     isOpen: boolean;
@@ -14,56 +16,45 @@ const ResumeModal: React.FC<ResumeModalProps> = ({isOpen, onClose, onSave}) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-green-900 bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-xl">
-                <h2 className="text-xl font-bold mb-4 text-green-800">Upload your resume</h2>
-
-                {/* New File upload block */}
-                <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Or upload a file (PDF/DOCX)
-                    </label>
-                    <input 
-                        type="file"
-                        accept=".pdf, .docx"
-                        onChange={(e) => {
-                            if (e.target.files && e.target.files.length > 0) {
-                                setSelectedFile(e.target.files[0])
-                            }
-                        }}
-                        className="block w-full text-sm text-green-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
-                    />
-
-                    <p className="text-xs text-gray-500 mt-2">
-                        {selectedFile ? `Selected: ${selectedFile.name}` : "No file selected"}
-                    </p>
-                </div>
-
-                <p className="text-sm text-gray-400 mb-2">Paste text below:</p>
-
-                {/* Render a textarea. On change, update the local 'resumeText' state  */}
-                <textarea 
-                    className="w-full h-40 border-2 border-green-200 rounded-lg p-2 mb-4 focus:border-green-500 outline-none"
-                    placeholder="Paste your resume text here..."
-                    value={resumeText}
-                    onChange={(e) => setResumeText(e.target.value)}
+        <Modal isOpen={isOpen} onClose={onClose} title="Upload your resume">
+            
+            {/* File upload block */}
+            <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Or upload a file (PDF/DOCX)
+                </label>
+                <input 
+                    type="file"
+                    accept=".pdf, .docx"
+                    onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                            setSelectedFile(e.target.files[0]);
+                        }
+                    }}
+                    className="block w-full text-sm text-green-700"
                 />
-
-                <div className="flex justify-end gap-2">
-                    {/* On Cancel click, trigger onClose() to close the modal. */}
-                    <button onClick={onClose} className="px-4 py-2 text-green-700 hover:bg-green-50 rounded-lg">
-                        Cancel
-                    </button>
-                    {/* On Save click, call onSave(resumeText) the call onClose(). */}
-                    <button
-                        onClick={() => {onSave(resumeText, selectedFile ?? undefined); onClose();}}
-                        className="px-6 py-2 bg-green-700 text-white rounded-full hover:bg-green-800 transition-colors"
-                    >
-                        Save Resume
-                    </button>
-                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                    {selectedFile ? `Selected: ${selectedFile.name}` : "No file selected"}
+                </p>
             </div>
-        </div>
+
+            <p className="text-sm text-gray-400 mb-2">Paste text below:</p>
+
+            <textarea 
+                className="w-full h-40 border-2 border-green-200 rounded-lg p-2 mb-6 focus:border-green-500 outline-none"
+                placeholder="Paste your resume text here..."
+                value={resumeText}
+                onChange={(e) => setResumeText(e.target.value)}
+            />
+
+            {/* Action Footer */}
+            <div className="flex justify-end gap-2">
+                <Button onClick={onClose}>Cancel</Button>
+                <Button onClick={() => { onSave(resumeText, selectedFile ?? undefined); onClose(); }}>
+                    Save Resume
+                </Button>
+            </div>
+        </Modal>
     );
 };
 
