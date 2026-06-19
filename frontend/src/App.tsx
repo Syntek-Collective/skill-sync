@@ -122,10 +122,19 @@ function App() {
   const [historyArray, setHistoryArray] = useState([])
 
   //PLACEHOLDER FUNCTION UNTIL BACKEND IS BUILT
+  
 
   //REAL FUNCTION
+  //data must be converted to JSON to travel over the internet 
   const handleAnalyze = async(jobQuery: string) => {
-    const response = await fetch()
+    const response = await fetch('http://localhost:3000/api/analyze', {
+      //type of request we are making to the back end 
+      method: 'POST',
+      //info about request: describes the data type of the in the request body (JSON)
+      headers: { 'Content-Type': 'application/json' },
+      //actual data sent in request - takes the JS object response from the back end and converts it to a JSON string
+      body: JSON.stringify({ resumeFile, jobQuery })
+    })
   }
 
 
