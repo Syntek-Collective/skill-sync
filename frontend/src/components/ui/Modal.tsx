@@ -21,14 +21,14 @@ export const Modal: React.FC<ModalProps> = ({isOpen, onClose, title, children}) 
                 {/* Close Button - Absolute positioning to the top right */}
                 <button 
                     onClick={onClose}
-                    className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl font-light"
+                    className="absolute top-4 right-4 text-2xl font-light"
                     aria-label="Close"
                 >
                     &times;
                 </button>
 
                 {/* Header Section */}
-                <h2 className="text-xl font-bold mb-6 text-gray-800">{title}</h2>
+                <h2 className="text-xl font-bold mb-6">{title}</h2>
 
                 {/* Content Section */}
                 <div className="mb-6">
