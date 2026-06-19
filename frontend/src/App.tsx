@@ -22,7 +22,8 @@
 
 
   What does it send?
-  It sends relevant props to child components NOT DONE AND ASK CLAUDE TO CHECK WHAT YOU HAVE DONE
+  Nothing, the main page doesn't pass/send anything to a parent component because its already 
+  at the top 
 
 */
 
