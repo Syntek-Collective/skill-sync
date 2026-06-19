@@ -101,7 +101,14 @@
     </main>
 
 */
-import { useState, useEffect } from "react"
+import { useState } from 'react'
+import Button from './components/ui/Button'
+
+import AnalysisResult from './components/AnalysisResult'
+import ResumeModal from './components/resumeModal'
+//import JobPostingModal from './components/jobPostingModal'
+//import AuthModal from './components/AuthModal'
+//import HistoryModal from './components/HistoryModal'
 
 
 function App() {
