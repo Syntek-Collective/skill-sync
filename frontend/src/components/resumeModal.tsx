@@ -6,7 +6,7 @@ import { supabase } from '../supabaseClient';
 interface ResumeModalProps {
     isOpen: boolean;
     onClose: () => void;
-    // Updated onSave to pass back the file path/URL after upload
+    // FIX #1: Match App.tsx expected shape: pass the filePath string
     onSave: (filePath: string) => void;
     // New prop passed from parent to sync loading state globally
     isLoading: boolean;
@@ -45,16 +45,16 @@ const ResumeModal: React.FC<ResumeModalProps> = ({isOpen, onClose, onSave, isLoa
         }
     };
 
-    // If isOpen is false, return null to hide from the UI
-    if (!isOpen) return null;
+    // FIX #2: Redundant isOpen check removed; the shared Modal component handles it.
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Upload your resume">
+            {/* FIX #3: Paste-text textarea and resumeText state removed for files-only workflow */}
             
             {/* File upload block */}
             <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Or upload a file (PDF/DOCX)
+                    Upload your resume (PDF/DOCX)
                 </label>
                 <input 
                     type="file"
