@@ -30,7 +30,7 @@ function AnalysisResult({ llmResponse }){
     return (
         <div>
             <h2>Skill Gap Analysis</h2>
-            <p>{llmResponse}</p>
+            <p>{llmResponse ? llmResponse : "Your analysis will appear here once you submit a job posting."}</p>
         </div>
     )
 }
