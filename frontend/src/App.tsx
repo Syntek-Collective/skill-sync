@@ -74,69 +74,113 @@
 
   Structure:
 
-    <main>  (the overall page wrapper)
+  <main>  (the overall page wrapper)
 
-      -- ALWAYS SHOWS --
-      The title (SkillSync) - sits outside any condition, so it always appears
+        -- ALWAYS SHOWS --
+        The title (Skill Sync) - sits outside any condition, so it always appears
 
-      -- MASTER SWITCH: isLoggedIn ? (logged in) : (logged out) --
+        -- MASTER SWITCH: isLoggedIn ? (logged in) : (logged out) --
 
-      IF logged in:
-        <div>
-          - personalized welcome message
-          - buttons: Add Resume / Job Posting / History (each opens its modal)
-          - AnalysisResult component (shows analysisResponse)
-          - the modals, each with the && pattern (show only IF their state is true):
-              IF isResumeModalOpen  -> ResumeModal (gets onClose, onSave)
-              IF isJobModalOpen     -> JobModal (gets onClose, onAnalyze)
-              IF isHistoryModalOpen -> HistoryModal (gets onClose, historyArray)
-        </div>
+        IF logged in:
+          <div>
+            - personalized welcome message ({userName}, leave nothing to chance.)
+            - buttons: Upload Resume / Upload Job Posting / Analysis History (each opens its modal)
+            - AnalysisResult component (shows analysisResponse)
+            - the modals, each with the && pattern (show only IF their state is true):
+                IF isResumeModalOpen  -> ResumeModal (gets isOpen, onClose, onSave)
+                IF isJobModalOpen     -> JobPostingModal (gets isOpen, onClose, onAnalyze)
+                IF isHistoryModalOpen -> HistoryModal (gets isOpen, onClose, historyArr)
+          </div>
 
-      OTHERWISE (logged out):
-        <div>
-          - message asking them to log in or sign up (AND/OR the align your skills accelerate your career message)
-          - Auth component (handles BOTH login and signup internally; gets onAuthSuccess)
-        </div>
+        OTHERWISE (logged out):
+          <div>
+            - tagline (Align your skills. Accelerate your career.)
+            - two buttons: Login / Signup
+                -> each sets authMode (which view to open to) AND opens the modal
+            - AuthModal with the && pattern (shows only IF isAuthModalOpen):
+                gets isOpen, onClose, onAuthSuccess, authMode, setAuthMode
+                (handles login AND signup internally; can toggle its own view via setAuthMode)
+          </div>
 
-    </main>
+      </main>
 
+
+    Auth flow notes:
+      - authMode ('login' | 'signup') = which view the modal opens to
+      - Login/Signup buttons set authMode + open the modal
+      - On success, the modal calls onAuthSuccess(user) -> handleAuthSuccess
+        which sets isLoggedIn true, stores the name, and closes the modal
+      - The modal can switch its own view (login <-> signup) via setAuthMode
 */
+
+
 import { useState } from 'react'
 import Button from './components/ui/Button'
 
 import AnalysisResult from './components/AnalysisResult'
 import ResumeModal from './components/ResumeModal'
-//import JobPostingModal from './components/JobPostingModal'
-//import AuthModal from './components/AuthModal'
-//import HistoryModal from './components/HistoryModal'
+import JobPostingModal from './components/JobPostingModal'
+import AuthModal from './components/AuthModal'
+import HistoryModal from './components/HistoryModal'
 
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userName, setUserName] = useState('')
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [authMode, setAuthMode] = useState<"login" | "signup">('login')
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false)
-  const [resumeFile, setResumeFile] = useState(null)
+  const [resumeFile, setResumeFile] = useState<File | null>(null)
   const [isJobModalOpen, setIsJobModalOpen] = useState(false)
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
   const [analysisResponse, setAnalysisResponse] = useState('')
-  const [historyArray, setHistoryArray] = useState([])
+  const [historyArray, setHistoryArray] = useState<{id: number, jobListing: string, result: string, createdAt: Date}[]>([])
+
 
   //PLACEHOLDER FUNCTION UNTIL BACKEND IS BUILT
-  
-
-  //REAL FUNCTION
-  //data must be converted to JSON to travel over the internet 
-  const handleAnalyze = async(jobQuery: string) => {
-    const response = await fetch('http://localhost:3000/api/analyze', {
-      //type of request we are making to the back end 
-      method: 'POST',
-      //info about request: describes the data type of the in the request body (JSON)
-      headers: { 'Content-Type': 'application/json' },
-      //actual data sent in request - takes the JS object response from the back end and converts it to a JSON string
-      body: JSON.stringify({ resumeFile, jobQuery })
-    })
+  const handleAnalyzePlaceholder = (jobQuery: string) => {
+    // 1. make a FAKE data object (same shape the backend would send)
+    const fakeObj = { id: 6767, result: "you're are inducted as a porky piggy pal", createdAt: new Date() }
+    
+    // 2. store the result (same as real function)
+    setAnalysisResponse(fakeObj.result)
+    
+    // 3. add to history (same as real function)
+    setHistoryArray([...historyArray, {id: fakeObj.id, jobListing: jobQuery, result: fakeObj.result, createdAt: fakeObj.createdAt}])
   }
 
+
+
+  // //REAL HANDLE ANALYZE FUNCTION
+  // //data must be converted to JSON to travel over the internet 
+  // const handleAnalyze = async(jobQuery: string) => {
+  //   const response = await fetch('http://localhost:3000/api/analyze', {
+  //     //type of request we are making to the back end 
+  //     method: 'POST',
+  //     //info about request: describes the data type of the in the request body (JSON)
+  //     headers: { 'Content-Type': 'application/json' },
+  //     //actual data sent in request - converts our JS object (resume + job) into a JSON string to send
+  //     body: JSON.stringify({ resume: resumeFile, jobPosting: jobQuery })
+  //   })
+
+  //   //convert the JSON response to a JavaScript
+  //   const data = await response.json()
+
+  //   //store the result so AnalysisResult shows it on screen
+  //   setAnalysisResponse(data.result)
+
+  //   //add this analysis (job + result) to history, keeping past entries
+  //   setHistoryArray([...historyArray, {id: data.id, jobListing: jobQuery, result: data.result, createdAt: data.createdAt}])
+  // }
+
+
+
+  //HANDLE AUTH SUCCESS FUNCTION
+  const handleAuthSuccess = (user: string) => {
+    setIsLoggedIn(true)
+    setUserName(user)
+    setIsAuthModalOpen(false)
+  }
 
   return (
     <main>
@@ -158,11 +202,18 @@ function App() {
           <AnalysisResult llmResponse={analysisResponse}/>
 
           { isResumeModalOpen && <ResumeModal isOpen={isResumeModalOpen} onClose={()=>{setIsResumeModalOpen(false)}} onSave={(file)=>{setResumeFile(file)}}/>}
-          { isJobModalOpen && <JobPostingModal isOpen={isJobModalOpen} onClose={()=>{setIsJobModalOpen(false)}} onAnalyze={}/>}
-          { isHistoryModalOpen && <HistoryModal isOpen={isHistoryModalOpen} onClose={()=>{setIsHistoryModalOpen(false)}} historyArr={historyArray}/>}
+          { isJobModalOpen && <JobPostingModal isOpen={isJobModalOpen} onClose={()=>{setIsJobModalOpen(false)}} onAnalyze={handleAnalyzePlaceholder}/>}
+          { isHistoryModalOpen && <HistoryModal isOpen={isHistoryModalOpen} onClose={()=>{setIsHistoryModalOpen(false)}} historyArray={historyArray}/>}
         </div>
       ) : (
-        <p>Align your skills. Accelerate your career.</p>
+        <div>
+          <p>Align your skills. Accelerate your career.</p>
+
+          <Button onClick={()=>{setAuthMode('login'); setIsAuthModalOpen(true)}}>Login</Button>
+          <Button onClick={()=>{setAuthMode('signup'); setIsAuthModalOpen(true)}}>Signup</Button>
+
+          {isAuthModalOpen && <AuthModal isOpen={isAuthModalOpen} onClose={()=>{setIsAuthModalOpen(false)}} onAuthSuccess={handleAuthSuccess} authMode={authMode} setAuthMode={setAuthMode}/>}
+        </div>
       )}
 
 
