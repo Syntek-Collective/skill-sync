@@ -8,7 +8,7 @@ interface ModalProps {
     children: React.ReactNode;
 }
 
-export const Modal: React.FC<ModalProps> = ({isOpen, onClose, title, children}) => {
+const Modal: React.FC<ModalProps> = ({isOpen, onClose, title, children}) => {
     // Logic to prevent modal from rendering if isOpen is false
     if (!isOpen) return null;
 
@@ -39,3 +39,4 @@ export const Modal: React.FC<ModalProps> = ({isOpen, onClose, title, children}) 
     );
 };
 
+export default Modal;
