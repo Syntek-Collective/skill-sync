@@ -116,6 +116,7 @@
 
 import { useState } from 'react'
 import Button from './components/ui/Button'
+import Loading from './components/ui/Loading'
 
 import AnalysisResult from './components/AnalysisResult'
 import ResumeModal from './components/ResumeModal'
@@ -124,8 +125,10 @@ import AuthModal from './components/AuthModal'
 import HistoryModal from './components/HistoryModal'
 
 
+
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const [userName, setUserName] = useState('')
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [authMode, setAuthMode] = useState<"login" | "signup">('login')
@@ -135,10 +138,11 @@ function App() {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
   const [analysisResponse, setAnalysisResponse] = useState('')
   const [historyArray, setHistoryArray] = useState<{id: number, jobListing: string, result: string, createdAt: Date}[]>([])
-
+  
 
   //PLACEHOLDER FUNCTION UNTIL BACKEND IS BUILT
   const handleAnalyzePlaceholder = (jobQuery: string) => {
+    setIsLoading(true)
     // 1. make a FAKE data object (same shape the backend would send)
     const fakeObj = { id: 6767, result: "you're are inducted as a porky piggy pal", createdAt: new Date() }
     
@@ -147,31 +151,39 @@ function App() {
     
     // 3. add to history (same as real function)
     setHistoryArray([...historyArray, {id: fakeObj.id, jobListing: jobQuery, result: fakeObj.result, createdAt: fakeObj.createdAt}])
+  
+    setIsLoading(false)
   }
 
 
 
-  // //REAL HANDLE ANALYZE FUNCTION
-  // //data must be converted to JSON to travel over the internet 
-  // const handleAnalyze = async(jobQuery: string) => {
-  //   const response = await fetch('http://localhost:3000/api/analyze', {
-  //     //type of request we are making to the back end 
-  //     method: 'POST',
-  //     //info about request: describes the data type of the in the request body (JSON)
-  //     headers: { 'Content-Type': 'application/json' },
-  //     //actual data sent in request - converts our JS object (resume + job) into a JSON string to send
-  //     body: JSON.stringify({ resume: resumeFile, jobPosting: jobQuery })
-  //   })
+  //REAL HANDLE ANALYZE FUNCTION
+  //data must be converted to JSON to travel over the internet 
+  const handleAnalyze = async(jobQuery: string) => {
+    //set the loading state to true while we are waiting for the response from the backend
+    setIsLoading(true)
 
-  //   //convert the JSON response to a JavaScript
-  //   const data = await response.json()
+    const response = await fetch('http://localhost:3000/api/analyze', {
+      //type of request we are making to the back end 
+      method: 'POST',
+      //info about request: describes the data type of the in the request body (JSON)
+      headers: { 'Content-Type': 'application/json' },
+      //actual data sent in request - converts our JS object (resume + job) into a JSON string to send
+      body: JSON.stringify({ resume: resumeFile, jobPosting: jobQuery })
+    })
 
-  //   //store the result so AnalysisResult shows it on screen
-  //   setAnalysisResponse(data.result)
+    //convert the JSON response to a JavaScript
+    const data = await response.json()
 
-  //   //add this analysis (job + result) to history, keeping past entries
-  //   setHistoryArray([...historyArray, {id: data.id, jobListing: jobQuery, result: data.result, createdAt: data.createdAt}])
-  // }
+    //store the result so AnalysisResult shows it on screen
+    setAnalysisResponse(data.result)
+
+    //add this analysis (job + result) to history, keeping past entries
+    setHistoryArray([...historyArray, {id: data.id, jobListing: jobQuery, result: data.result, createdAt: data.createdAt}])
+  
+    //once the information is received we are no longer loading
+    setIsLoading(false)
+  }
 
 
 
@@ -199,7 +211,11 @@ function App() {
           <Button onClick={()=>{setIsJobModalOpen(true)}}>Upload Job Posting</Button>
           <Button onClick={()=>{setIsHistoryModalOpen(true)}}>Analysis History</Button>
 
-          <AnalysisResult llmResponse={analysisResponse}/>
+          {isLoading ? (
+            <Loading/>
+          ): (
+            <AnalysisResult llmResponse={analysisResponse}/>
+          )}
 
           { isResumeModalOpen && <ResumeModal isOpen={isResumeModalOpen} onClose={()=>{setIsResumeModalOpen(false)}} onSave={(file)=>{setResumeFile(file)}}/>}
           { isJobModalOpen && <JobPostingModal isOpen={isJobModalOpen} onClose={()=>{setIsJobModalOpen(false)}} onAnalyze={handleAnalyzePlaceholder}/>}
@@ -215,9 +231,6 @@ function App() {
           {isAuthModalOpen && <AuthModal isOpen={isAuthModalOpen} onClose={()=>{setIsAuthModalOpen(false)}} onAuthSuccess={handleAuthSuccess} authMode={authMode} setAuthMode={setAuthMode}/>}
         </div>
       )}
-
-
-
 
     </main>
   );
