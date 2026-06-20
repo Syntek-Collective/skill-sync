@@ -1,9 +1,15 @@
 /*
 
+    SERVER
     A server is a program that runs continuously, waiting to receive requests and send back responses
     This is the entry point that allows the frontend to ask the backend to do things (ie. get data, run operations, access an LLM, etc.)
 
-    What is the purpose of this file?
+
+    WHAT IS THE PURPOSE OF THIS FILE?
+    To start the server - it takes the app (from app.ts) and tells it to begin listening 4 requests on port 3000
+    This file is the "on switch" that makes the backend run and start listening for frontend requests
+
+    
 
 */
 
