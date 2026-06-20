@@ -1,4 +1,5 @@
 import React, {useState} from 'react';
+
 import Modal from './ui/Modal';
 import Button from './ui/Button';
 import { supabase } from '../supabaseClient';
@@ -6,20 +7,27 @@ import { supabase } from '../supabaseClient';
 interface ResumeModalProps {
     isOpen: boolean;
     onClose: () => void;
-    // FIX #1: Match App.tsx expected shape: pass the filePath string
     onSave: (filePath: string) => void;
-    // New prop passed from parent to sync loading state globally
     isLoading: boolean;
     setIsLoading: (loading: boolean) => void;
 }
 
-const ResumeModal: React.FC<ResumeModalProps> = ({isOpen, onClose, onSave, isLoading, setIsLoading}) => {
+const ResumeModal: React.FC<ResumeModalProps> = ({
+    isOpen, 
+    onClose, 
+    onSave, 
+    isLoading, 
+    setIsLoading,
+}) => {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [error, setError] = useState<string | null>(null)
 
     // Logic to handle the file upload to Supabase Storage
     const handleUpload = async () => {
         if (!selectedFile) return;
+
         setIsLoading(true);
+        setError(null)
 
         try {
             // Create a unique file name using timestamp to prevent overwrites
@@ -39,17 +47,14 @@ const ResumeModal: React.FC<ResumeModalProps> = ({isOpen, onClose, onSave, isLoa
             onClose()
         } catch (error) {
             console.error('Error uploading file:', error);
-            alert('Failed to upload resume. Please try again')
+            setError('Failed to upload resume. Please try again.')
         } finally {
             setIsLoading(false);
         }
     };
 
-    // FIX #2: Redundant isOpen check removed; the shared Modal component handles it.
-
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Upload your resume">
-            {/* FIX #3: Paste-text textarea and resumeText state removed for files-only workflow */}
             
             {/* File upload block */}
             <div className="mb-6">
@@ -70,6 +75,10 @@ const ResumeModal: React.FC<ResumeModalProps> = ({isOpen, onClose, onSave, isLoa
                     {selectedFile ? `Selected: ${selectedFile.name}` : "No file selected"}
                 </p>
             </div>
+
+            {error && (
+        <p className="text-sm text-red-600 mb-4">{error}</p>
+    )}
 
             {/* Action Footer */}
             <div className="flex justify-end gap-2">
