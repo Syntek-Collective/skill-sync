@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {Modal} from './ui/Modal';
+import Modal from './ui/Modal';
 import Button from './ui/Button';
 import { supabase } from '../supabaseClient';
 
@@ -8,16 +8,18 @@ interface ResumeModalProps {
     onClose: () => void;
     // Updated onSave to pass back the file path/URL after upload
     onSave: (filePath: string) => void;
+    // New prop passed from parent to sync loading state globally
+    isLoading: boolean;
+    setIsLoading: (loading: boolean) => void;
 }
 
-const ResumeModal: React.FC<ResumeModalProps> = ({isOpen, onClose, onSave}) => {
+const ResumeModal: React.FC<ResumeModalProps> = ({isOpen, onClose, onSave, isLoading, setIsLoading}) => {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [loading, setLoading] = useState<boolean>(false);
 
     // Logic to handle the file upload to Supabase Storage
     const handleUpload = async () => {
         if (!selectedFile) return;
-        setLoading(true);
+        setIsLoading(true);
 
         try {
             // Create a unique file name using timestamp to prevent overwrites
@@ -39,9 +41,9 @@ const ResumeModal: React.FC<ResumeModalProps> = ({isOpen, onClose, onSave}) => {
             console.error('Error uploading file:', error);
             alert('Failed to upload resume. Please try again')
         } finally {
-            setLoading
+            setIsLoading(false);
         }
-    }
+    };
 
     // If isOpen is false, return null to hide from the UI
     if (!isOpen) return null;
@@ -73,8 +75,8 @@ const ResumeModal: React.FC<ResumeModalProps> = ({isOpen, onClose, onSave}) => {
             <div className="flex justify-end gap-2">
                 <Button onClick={onClose}>Cancel</Button>
                 {/* Disable button during upload to prevent duplicate submissions */}
-                <Button onClick={handleUpload} disabled={loading || !selectedFile}>
-                    {loading ? 'Uploading...' : 'Save Resume'}
+                <Button onClick={handleUpload} disabled={isLoading || !selectedFile}>
+                    {isLoading ? 'Uploading...' : 'Save Resume'}
                 </Button>
             </div>
         </Modal>
