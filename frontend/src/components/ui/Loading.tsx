@@ -78,7 +78,11 @@
 
 function Loading() {
   return (
-    <div className="animate-spin rounded-full h-10 w-10 border-4 border-green-200 border-t-green-700"></div>
+    <div 
+      className="animate-spin rounded-full h-5 w-5 border-4 border-green-200 border-t-green-700"
+      role="status"
+      aria-label="Loading"
+    ></div>
   )
 }
 
