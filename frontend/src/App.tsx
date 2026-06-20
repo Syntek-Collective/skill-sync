@@ -35,22 +35,3 @@
   Since this application relies on conditional rendering 
 
 */
-
-import Button from "./components/ui/Button";
-
-function App() {
-  return (
-    <main className="min-h-screen flex flex-col items-center justify-center gap-8">
-      <div className="text-center">
-        <h1 className="text-5xl font-bold">SkillSync</h1>
-        <p className="mt-3 text-sm font-medium">
-          Align your skills. Accelerate your career.
-        </p>
-      </div>
-
-      <Button>Upload Resume</Button>
-    </main>
-  );
-}
-
-export default App;
