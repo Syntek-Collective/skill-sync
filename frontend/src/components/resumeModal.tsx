@@ -1,16 +1,47 @@
 import React, {useState} from 'react';
 import {Modal} from './ui/Modal';
-import Button from './ui/Button'
+import Button from './ui/Button';
+import { supabase } from '../supabaseClient';
 
 interface ResumeModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (text: string, file?: File) => void;
+    // Updated onSave to pass back the file path/URL after upload
+    onSave: (filePath: string) => void;
 }
 
 const ResumeModal: React.FC<ResumeModalProps> = ({isOpen, onClose, onSave}) => {
-    const [resumeText, setResumeText] = useState<string>('');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [loading, setLoading] = useState<boolean>(false);
+
+    // Logic to handle the file upload to Supabase Storage
+    const handleUpload = async () => {
+        if (!selectedFile) return;
+        setLoading(true);
+
+        try {
+            // Create a unique file name using timestamp to prevent overwrites
+            const fileExt = selectedFile.name.split('.').pop();
+            const fileName = `${Date.now()}.${fileExt}`;
+            const filePath = `resumes/${fileName}`;
+
+            // Upload the file to the 'resumes' bucket in Supabase
+            const {error: uploadError} = await supabase.storage
+                .from('resumes')
+                .upload(filePath, selectedFile);
+
+            if (uploadError) throw uploadError
+
+            // Success: Trigger onSave with the path, then close
+            onSave(filePath);
+            onClose()
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            alert('Failed to upload resume. Please try again')
+        } finally {
+            setLoading
+        }
+    }
 
     // If isOpen is false, return null to hide from the UI
     if (!isOpen) return null;
@@ -38,20 +69,12 @@ const ResumeModal: React.FC<ResumeModalProps> = ({isOpen, onClose, onSave}) => {
                 </p>
             </div>
 
-            <p className="text-sm text-gray-400 mb-2">Paste text below:</p>
-
-            <textarea 
-                className="w-full h-40 border-2 border-green-200 rounded-lg p-2 mb-6 focus:border-green-500 outline-none"
-                placeholder="Paste your resume text here..."
-                value={resumeText}
-                onChange={(e) => setResumeText(e.target.value)}
-            />
-
             {/* Action Footer */}
             <div className="flex justify-end gap-2">
                 <Button onClick={onClose}>Cancel</Button>
-                <Button onClick={() => { onSave(resumeText, selectedFile ?? undefined); onClose(); }}>
-                    Save Resume
+                {/* Disable button during upload to prevent duplicate submissions */}
+                <Button onClick={handleUpload} disabled={loading || !selectedFile}>
+                    {loading ? 'Uploading...' : 'Save Resume'}
                 </Button>
             </div>
         </Modal>
