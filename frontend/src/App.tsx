@@ -116,7 +116,7 @@
 
 import { useState } from 'react'
 import Button from './components/ui/Button'
-import Loading from './components/Loading'
+import Loading from './components/ui/Loading'
 
 import AnalysisResult from './components/AnalysisResult'
 import ResumeModal from './components/ResumeModal'
@@ -231,7 +231,7 @@ function App() {
           {isAuthModalOpen && <AuthModal isOpen={isAuthModalOpen} onClose={()=>{setIsAuthModalOpen(false)}} onAuthSuccess={handleAuthSuccess} authMode={authMode} setAuthMode={setAuthMode}/>}
         </div>
       )}
-      
+
     </main>
   );
 }
