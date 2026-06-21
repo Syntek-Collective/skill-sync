@@ -1,0 +1,46 @@
+/*
+
+    What feature is it for?
+    Handles all the analyze feature's routes (anything to do with comparing the resume to a job posting).
+    A mini routing system just for this file's routes.
+
+    What does this route do? What request does it handle?
+    This router receives all the analyze-related requests and directs them to the right 
+    controller (which does the actual work). It creates a mini-router for the analyze 
+    routes, defines them, and exports the router so app.ts can connect it.
+
+
+    Base Route from app.ts
+    /api/analyze 
+
+*/
+
+/*
+
+    TODO
+    wire up the analyze route(s) once the analyzeController exists.
+
+    This file still needs to:
+    1. import the controller function(s) this route should point to
+    2. define the route(s) - decide the method (GET/POST) and path
+        (this feature SENDS data to be analyzed - consider which method fits)
+    3. make sure the route points to the right controller function
+
+    Coordinate with whoever owns the analyzeController on the function name(s)
+    so the import matches.
+
+*/
+
+
+//import express in order to create the router
+import express from 'express'
+
+//create the router 
+const router = express.Router()
+
+
+
+
+
+//export the router so app.ts can connect to it 
+export default router 
