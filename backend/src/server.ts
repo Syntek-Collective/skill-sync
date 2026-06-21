@@ -9,7 +9,6 @@
     To start the server - it takes the app (from app.ts) and tells it to begin listening 4 requests on port 3000
     This file is the "on switch" that makes the backend run and start listening for frontend requests
 
-    
 
 */
 

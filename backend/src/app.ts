@@ -26,6 +26,7 @@
 
 */
 
+
 import express, { Request, Response } from "express";
 
 //create a new server application and store it so you can use it
@@ -37,11 +38,15 @@ const app = express();
 //tells the app we must convert the text to a JavaScript object
 app.use(express.json());
 
+
+
 //TEST ROUTE - WORKING ✅ 
 //add a route - when someone sends a GET request to the address "/api/test"...
 app.get("/api/test", (req: Request, res: Response) => {
   //...send back a JSON response saying everything is working
   res.json({ status: "ok" });
 });
+
+
 
 export default app;
