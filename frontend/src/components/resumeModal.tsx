@@ -8,19 +8,16 @@ interface ResumeModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (filePath: string) => void;
-    isLoading: boolean;
-    setIsLoading: (loading: boolean) => void;
 }
 
 const ResumeModal: React.FC<ResumeModalProps> = ({
     isOpen, 
     onClose, 
     onSave, 
-    isLoading, 
-    setIsLoading,
 }) => {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [error, setError] = useState<string | null>(null)
+    const [error, setError] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState<boolean>(false);
 
     // Logic to handle the file upload to Supabase Storage
     const handleUpload = async () => {
