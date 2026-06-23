@@ -135,7 +135,7 @@ function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [authMode, setAuthMode] = useState<"login" | "signup">('login')
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false)
-  const [resumeFile, setResumeFile] = useState<File | null>(null)
+  const [resumeFilePath, setResumeFilePath] = useState<string | null>(null)
   const [isJobModalOpen, setIsJobModalOpen] = useState(false)
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
   const [analysisResponse, setAnalysisResponse] = useState('')
@@ -159,33 +159,33 @@ function App() {
 
 
 
-  //REAL HANDLE ANALYZE FUNCTION
-  //data must be converted to JSON to travel over the internet 
-  const handleAnalyze = async(jobQuery: string) => {
-    //set the loading state to true while we are waiting for the response from the backend
-    setIsLoading(true)
+  // //REAL HANDLE ANALYZE FUNCTION
+  // //data must be converted to JSON to travel over the internet 
+  // const handleAnalyze = async(jobQuery: string) => {
+  //   //set the loading state to true while we are waiting for the response from the backend
+  //   setIsLoading(true)
 
-    const response = await fetch('http://localhost:3000/api/analyze', {
-      //type of request we are making to the back end 
-      method: 'POST',
-      //info about request: describes the data type of the in the request body (JSON)
-      headers: { 'Content-Type': 'application/json' },
-      //actual data sent in request - converts our JS object (resume + job) into a JSON string to send
-      body: JSON.stringify({ resume: resumeFile, jobPosting: jobQuery })
-    })
+  //   const response = await fetch('http://localhost:3000/api/analyze', {
+  //     //type of request we are making to the back end 
+  //     method: 'POST',
+  //     //info about request: describes the data type of the in the request body (JSON)
+  //     headers: { 'Content-Type': 'application/json' },
+  //     //actual data sent in request - converts our JS object (resume + job) into a JSON string to send
+  //     body: JSON.stringify({ resume: resumeFilePath, jobPosting: jobQuery })
+  //   })
 
-    //convert the JSON response to a JavaScript
-    const data = await response.json()
+  //   //convert the JSON response to a JavaScript
+  //   const data = await response.json()
 
-    //store the result so AnalysisResult shows it on screen
-    setAnalysisResponse(data.result)
+  //   //store the result so AnalysisResult shows it on screen
+  //   setAnalysisResponse(data.result)
 
-    //add this analysis (job + result) to history, keeping past entries
-    setHistoryArray([...historyArray, {id: data.id, jobListing: jobQuery, result: data.result, createdAt: data.createdAt}])
+  //   //add this analysis (job + result) to history, keeping past entries
+  //   setHistoryArray([...historyArray, {id: data.id, jobListing: jobQuery, result: data.result, createdAt: data.createdAt}])
   
-    //once the information is received we are no longer loading
-    setIsLoading(false)
-  }
+  //   //once the information is received we are no longer loading
+  //   setIsLoading(false)
+  // }
 
 
 
@@ -209,17 +209,17 @@ function App() {
         <div>
           <p>{userName}, leave nothing to chance.</p>
 
-          <Button onClick={()=>{setIsResumeModalOpen(true)}}>Upload Resume</Button>
-          <Button onClick={()=>{setIsJobModalOpen(true)}}>Upload Job Posting</Button>
-          <Button onClick={()=>{setIsHistoryModalOpen(true)}}>Analysis History</Button>
-
           {isLoading ? (
             <Loading/>
           ): (
             <AnalysisResult llmResponse={analysisResponse}/>
           )}
 
-          { isResumeModalOpen && <ResumeModal isOpen={isResumeModalOpen} onClose={()=>{setIsResumeModalOpen(false)}} onSave={(file)=>{setResumeFile(file)}}/>}
+          <Button onClick={()=>{setIsResumeModalOpen(true)}}>Upload Resume</Button>
+          <Button onClick={()=>{setIsJobModalOpen(true)}}>Upload Job Posting</Button>
+          <Button onClick={()=>{setIsHistoryModalOpen(true)}}>Analysis History</Button>
+
+          { isResumeModalOpen && <ResumeModal isOpen={isResumeModalOpen} onClose={()=>{setIsResumeModalOpen(false)}} onSave={(filePath)=>{setResumeFilePath(filePath)}}/>}
           { isJobModalOpen && <JobPostingModal isOpen={isJobModalOpen} onClose={()=>{setIsJobModalOpen(false)}} onAnalyze={handleAnalyzePlaceholder}/>}
           { isHistoryModalOpen && <HistoryModal isOpen={isHistoryModalOpen} onClose={()=>{setIsHistoryModalOpen(false)}} historyArray={historyArray}/>}
         </div>
