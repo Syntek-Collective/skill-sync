@@ -155,8 +155,8 @@ function App() {
 
 
 
-  //REAL HANDLE ANALYZE FUNCTION
-  //data must be converted to JSON to travel over the internet
+  // // REAL HANDLE ANALYZE FUNCTION
+  // // data must be converted to JSON to travel over the internet
   // const handleAnalyze = async(jobQuery: string) => {
   //   //set the loading state to true while we are waiting for the response from the backend
   //   setIsLoading(true)
@@ -176,8 +176,16 @@ function App() {
   //   //store the result so AnalysisResult shows it on screen
   //   setAnalysisResponse(data.result)
 
-  //   //add this analysis (job + result) to history, keeping past entries
-  //   setHistoryArray([...historyArray, {id: data.id, jobListing: jobQuery, result: data.result, createdAt: data.createdAt}])
+  //   // add this analysis to history, keeping past entries
+  //   setHistoryArray([
+  //     ...historyArray,
+  //     {
+  //       id: String(data.id),               // ensure it's a string (matches our type)
+  //       jobListing: jobQuery,
+  //       result: data.result,
+  //       createdAt: String(data.createdAt)  // ensure it's a string (matches our type)
+  //     }
+  //   ])
 
   //   //once the information is received we are no longer loading
   //   setIsLoading(false)
