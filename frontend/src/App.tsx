@@ -112,9 +112,10 @@
       - The modal can switch its own view (login <-> signup) via setAuthMode
 */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Button from "./components/ui/Button";
 import Loading from "./components/ui/Loading";
+import { supabase } from "./supabaseClient";
 
 import AnalysisResult from "./components/AnalysisResult";
 import ResumeModal from "./components/resumeModal";
@@ -137,6 +138,29 @@ function App() {
   const [historyArray, setHistoryArray] = useState<
     { id: string; jobListing: string; result: string; createdAt: string }[]
   >([]);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+
+      if (data.session) {
+        const user = data.session.user;
+
+        const profileResponse = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", user.id)
+          .single();
+
+        const username = profileResponse.data?.username;
+
+        setIsLoggedIn(true);
+        setUserName(username || user.email || "");
+      }
+    };
+
+    checkSession();
+  }, []);
 
   //PLACEHOLDER FUNCTION UNTIL BACKEND IS BUILT
   const handleAnalyzePlaceholder = (jobQuery: string) => {
@@ -208,8 +232,24 @@ function App() {
     setIsAuthModalOpen(false);
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setIsLoggedIn(false);
+    setUserName("");
+  };
+
   return (
-    <main className="min-h-screen flex flex-col items-center text-center px-6 pt-20">
+    <main className="relative min-h-screen flex flex-col items-center text-center px-6 pt-20">
+      {isLoggedIn && (
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="absolute right-6 top-6 rounded-full border border-[#c8d0c6] bg-white/85 px-5 py-2 text-xs font-medium text-[#003d06] shadow-[0_8px_18px_rgba(0,61,6,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#eef8ec] hover:shadow-[0_12px_24px_rgba(0,61,6,0.3)]"
+        >
+          Logout
+        </button>
+      )}
+
       {/* ===== ALWAYS SHOWS (no condition) ===== */}
 
       <img
