@@ -26,13 +26,19 @@
 */
 
 //function that returns the the response display on the UI
-function AnalysisResult({ llmResponse }){
-    return (
-        <div>
-            <h2>Skill Gap Analysis</h2>
-            <p>{llmResponse ? llmResponse : "Your analysis will appear here once you submit a job posting."}</p>
-        </div>
-    )
+function AnalysisResult({ llmResponse }) {
+  return (
+    <div className="mt-8">
+      <h2 className="text-lg font-semibold uppercase tracking-wide">
+        Skill Gap Analysis
+      </h2>
+      <p className="mt-3 text-sm opacity-80">
+        {llmResponse
+          ? llmResponse
+          : "Your analysis will appear here once you submit a job posting."}
+      </p>
+    </div>
+  );
 }
 
-export default AnalysisResult
+export default AnalysisResult;

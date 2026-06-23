@@ -239,7 +239,7 @@ function App() {
   };
 
   return (
-    <main className="relative min-h-screen flex flex-col items-center text-center px-6 pt-20">
+    <main className="relative min-h-screen flex flex-col items-center text-center px-6 pt-10">
       {isLoggedIn && (
         <button
           type="button"
@@ -255,21 +255,15 @@ function App() {
       <img
         src={skillSyncLogo}
         alt="Skill Sync logo"
-        className="h-24 w-24 mb-2"
+        className="h-20 w-20 mb-1"
       />
 
-      <h1 className="text-5xl font-bold uppercase">Skill Sync</h1>
+      <h1 className="text-4xl font-bold uppercase">Skill Sync</h1>
 
       {/* ===== MASTER SWITCH: logged in or not? ===== */}
       {isLoggedIn ? (
         <div>
-          <p>{userName}, leave nothing to chance.</p>
-
-          {isLoading ? (
-            <Loading />
-          ) : (
-            <AnalysisResult llmResponse={analysisResponse} />
-          )}
+          <p className="mt-2 text-sm">{userName}, leave nothing to chance.</p>
 
           <div className="mt-10 flex flex-wrap justify-center gap-12">
             <Button
@@ -294,6 +288,12 @@ function App() {
               Analysis History
             </Button>
           </div>
+
+          {isLoading ? (
+            <Loading />
+          ) : (
+            <AnalysisResult llmResponse={analysisResponse} />
+          )}
 
           {isResumeModalOpen && (
             <ResumeModal
