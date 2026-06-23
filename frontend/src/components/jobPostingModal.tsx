@@ -14,17 +14,17 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
   onClose,
   onAnalyze,
 }) => {
-  const [jobTitle, setJobTitle] = useState("");
+  const [jobPosting, setJobPosting] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const handleAnalyze = () => {
-    if (!jobTitle) {
-      setError("Job title is required.");
+    if (!jobPosting) {
+      setError("Job posting is required.");
       return;
     }
 
     // send the job posting up to App.tsx (which runs the analysis + shows the loading)
-    onAnalyze(jobTitle);
+    onAnalyze(jobPosting);
     onClose();
   };
 
@@ -36,8 +36,8 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
         </label>
         <input
           type="text"
-          value={jobTitle}
-          onChange={(e) => setJobTitle(e.target.value)}
+          value={jobPosting}
+          onChange={(e) => setJobPosting(e.target.value)}
           className="w-full p-2 border rounded"
           placeholder="e.g. Senior Software Engineer"
         />
@@ -47,7 +47,7 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
 
       <div className="flex justify-end gap-2">
         <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleAnalyze} disabled={!jobTitle}>
+        <Button onClick={handleAnalyze} disabled={!jobPosting}>
           Analyze
         </Button>
       </div>
