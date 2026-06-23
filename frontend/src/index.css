@@ -10,7 +10,7 @@ body {
   min-height: 100%;
   margin: 0;
   font-family: "JetBrains Mono", monospace;
-background-image: url("./assets/skillsync-background-final.png");
+  background-image: url("./assets/skillsync-background-final.png");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
