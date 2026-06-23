@@ -4,10 +4,10 @@ import Button from "./ui/Button";
 import Modal from "./ui/Modal";
 import Loading from "./ui/Loading";
 
-//controls whether this modal is being used to log in or sign up
+// Controls whether this modal is being used to log in or sign up.
 type AuthMode = "login" | "signup";
 
-//props from App.tsx
+// Props from App.tsx.
 type AuthModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -16,7 +16,7 @@ type AuthModalProps = {
   setAuthMode: (mode: AuthMode) => void;
 };
 
-//renders the sign in/log in form and handles Supabase auth
+// Renders the signup/login form and handles Supabase auth.
 function AuthModal({
   isOpen,
   onClose,
@@ -24,13 +24,14 @@ function AuthModal({
   authMode,
   setAuthMode,
 }: AuthModalProps) {
-  //local state tracking form inputs, error message, and loading status
+  // Local state tracking form inputs, error message, and loading status.
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  // Resets all form fields and clears any visible auth error.
   const resetForm = () => {
     setName("");
     setEmail("");
@@ -38,110 +39,132 @@ function AuthModal({
     setError("");
   };
 
+  // Switches between login and signup modes and clears the form.
   const switchAuthMode = () => {
     setAuthMode(authMode === "login" ? "signup" : "login");
     resetForm();
   };
 
-  //the submit button changes based on user logging in or signing up
+  // The submit button changes based on user logging in or signing up.
   const buttonText = authMode === "login" ? "Log In" : "Sign Up";
 
-  //handleSubmit runs when the form is submitted and chooses the correct flow
+  /* HELPER FUNCTIONS */
+
+  // Looks up the user's profile row and returns their username.
+  const getProfileUsername = async (userId: string) => {
+    const profileResponse = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", userId)
+      .single();
+
+    const profile = profileResponse.data;
+    const profileError = profileResponse.error;
+
+    // Stop early if the profile or username cannot be found.
+    if (profileError) {
+      setError(profileError.message);
+      return;
+    }
+
+    if (!profile) {
+      setError("Could not find profile.");
+      return;
+    }
+
+    if (!profile.username) {
+      setError("Could not find username.");
+      return;
+    }
+    return profile.username;
+  };
+
+  // Handles the signup flow through Supabase Auth.
+  const handleSignup = async () => {
+    const response = await supabase.auth.signUp({
+      email: email,
+      password: password,
+      options: {
+        data: {
+          username: name,
+        },
+      },
+    });
+
+    const user = response.data.user;
+    const signUpError = response.error;
+
+    // Stop early if Supabase could not create the user.
+    if (signUpError) {
+      setError(signUpError.message);
+      return;
+    }
+
+    if (!user) {
+      setError("Could not create user.");
+      return;
+    }
+
+    // Tell App.tsx signup succeeded and send back the name to display.
+    onAuthSuccess(name);
+  };
+
+  // Handles the login flow and loads the user's display name.
+  const handleLogin = async () => {
+    const response = await supabase.auth.signInWithPassword({
+      email: email,
+      password: password,
+    });
+
+    const loginError = response.error;
+
+    if (loginError) {
+      setError(loginError.message);
+      return;
+    }
+
+    const user = response.data.user;
+
+    if (!user) {
+      setError("Could not log in user.");
+      return;
+    }
+
+    // Login only has email/password, so use the user id to fetch the username from profiles.
+    const username = await getProfileUsername(user.id);
+
+    if (!username) {
+      return;
+    }
+
+    // Tell App.tsx login succeeded and send back the username to display.
+    onAuthSuccess(username);
+  };
+
+  // handleSubmit runs when the form is submitted and chooses the correct flow.
   async function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     setIsLoading(true);
 
     try {
-      //Signup creates a new Supabse Auth user and sends username as metadata
+      // Signup creates a new Supabase Auth user and sends username as metadata.
       if (authMode === "signup") {
-        const response = await supabase.auth.signUp({
-          email: email,
-          password: password,
-          options: {
-            data: {
-              username: name,
-            },
-          },
-        });
-
-        const user = response.data.user;
-        const signUpError = response.error;
-
-        //stop early if Supabase could not create the user
-        if (signUpError) {
-          setError(signUpError.message);
-          return;
-        }
-
-        if (!user) {
-          setError("Could not create user.");
-          return;
-        }
-
-        //Tell App.tsx signup succeeded and send back the name to display
-        onAuthSuccess(name);
+        await handleSignup();
       } else {
-        //Login authenticates an exiting user with email and password
-        const response = await supabase.auth.signInWithPassword({
-          email: email,
-          password: password,
-        });
-
-        const loginError = response.error;
-
-        if (loginError) {
-          setError(loginError.message);
-          return;
-        }
-
-        const user = response.data.user;
-
-        if (!user) {
-          setError("Could not log in user.");
-          return;
-        }
-
-        //After login, fetch the user's profile so App.tsx can display their username
-        const profileResponse = await supabase
-          .from("profiles")
-          .select("username")
-          .eq("id", user.id)
-          .single();
-
-        const profile = profileResponse.data;
-        const profileError = profileResponse.error;
-
-        //Stop early if the profile or username cannot be found
-        if (profileError) {
-          setError(profileError.message);
-          return;
-        }
-
-        if (!profile) {
-          setError("Could not find profile.");
-          return;
-        }
-
-        if (!profile.username) {
-          setError("Could not find username.");
-          return;
-        }
-
-        //Tell App.tsx login succeeded and send back the username to display
-        onAuthSuccess(profile.username);
+        await handleLogin();
       }
-      //Catch unexplected errors like network issues or thrown Supabase errors
+      // Catch unexpected errors like network issues or thrown Supabase errors.
     } catch (err) {
       console.error("Auth failed:", err);
       setError("Something went wrong. Please try again.");
-      //always turn loading off after the auth attempt finishes
+      // Always turn loading off after the auth attempt finishes.
     } finally {
       setIsLoading(false);
     }
   }
 
-  //Render the shared Modal wrapper with the auth form inside it
+  // Render the shared Modal wrapper with the auth form inside it.
   return (
     <Modal
       isOpen={isOpen}
