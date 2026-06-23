@@ -32,7 +32,7 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
     <Modal isOpen={isOpen} onClose={onClose} title="Add New Job Posting">
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Job Title
+          Job Posting
         </label>
         <input
           type="text"
