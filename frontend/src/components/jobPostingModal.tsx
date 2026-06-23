@@ -2,47 +2,30 @@ import React, { useState } from "react";
 
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
-import { supabase } from "../supabaseClient";
 
 interface JobPostingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (jobData: any) => void;
+  onAnalyze: (jobPosting: string) => void;
 }
 
 const JobPostingModal: React.FC<JobPostingModalProps> = ({
   isOpen,
   onClose,
-  onSave,
+  onAnalyze,
 }) => {
   const [jobTitle, setJobTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const handleSave = async () => {
+  const handleAnalyze = () => {
     if (!jobTitle) {
       setError("Job title is required.");
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const { error: dbError } = await supabase
-        .from("job_postings")
-        .insert([{ title: jobTitle }]);
-
-      if (dbError) throw dbError;
-
-      onSave({ title: jobTitle });
-      onClose();
-    } catch (err) {
-      console.error("Error saving job:", err);
-      setError("Failed to save job posting. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
+    // send the job posting up to App.tsx (which runs the analysis + shows the loading)
+    onAnalyze(jobTitle);
+    onClose();
   };
 
   return (
@@ -64,8 +47,8 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
 
       <div className="flex justify-end gap-2">
         <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSave} disabled={isLoading || !jobTitle}>
-          {isLoading ? "Saving..." : "Save Job"}
+        <Button onClick={handleAnalyze} disabled={!jobTitle}>
+          Analyze
         </Button>
       </div>
     </Modal>

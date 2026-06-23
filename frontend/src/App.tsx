@@ -112,60 +112,51 @@
       - The modal can switch its own view (login <-> signup) via setAuthMode
 */
 
-import { useState } from "react";
-import Button from "./components/ui/Button";
-import Loading from "./components/ui/Loading";
+import { useState } from 'react'
+import Button from './components/ui/Button'
+import Loading from './components/ui/Loading'
 
-import AnalysisResult from "./components/AnalysisResult";
-import ResumeModal from "./components/ResumeModal";
-import JobPostingModal from "./components/JobPostingModal";
-import AuthModal from "./components/AuthModal";
-import HistoryModal from "./components/HistoryModal";
+import AnalysisResult from './components/AnalysisResult'
+import ResumeModal from './components/resumeModal'
+import JobPostingModal from './components/jobPostingModal'
+import AuthModal from './components/AuthModal'
+import HistoryModal from './components/HistoryModal'
+
+
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [userName, setUserName] = useState("");
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
-  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
-  const [resumeFilePath, setResumeFilePath] = useState<string | null>(null);
-  const [isJobModalOpen, setIsJobModalOpen] = useState(false);
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-  const [analysisResponse, setAnalysisResponse] = useState("");
-  const [historyArray, setHistoryArray] = useState<
-    { id: number; jobListing: string; result: string; createdAt: Date }[]
-  >([]);
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [userName, setUserName] = useState('')
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [authMode, setAuthMode] = useState<"login" | "signup">('login')
+  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false)
+  const [resumeFilePath, setResumeFilePath] = useState<string | null>(null)
+  const [isJobModalOpen, setIsJobModalOpen] = useState(false)
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
+  const [analysisResponse, setAnalysisResponse] = useState('')
+  const [historyArray, setHistoryArray] = useState<{id: string, jobListing: string, result: string, createdAt: string}[]>([])
+
 
   //PLACEHOLDER FUNCTION UNTIL BACKEND IS BUILT
   const handleAnalyzePlaceholder = (jobQuery: string) => {
-    setIsLoading(true);
+    setIsLoading(true)
     // 1. make a FAKE data object (same shape the backend would send)
-    const fakeObj = {
-      id: 6767,
-      result: "you're are inducted as a porky piggy pal",
-      createdAt: new Date(),
-    };
+    const fakeObj = { id: '6767', result: "you're are inducted as a porky piggy pal", createdAt: new Date().toISOString() }
 
     // 2. store the result (same as real function)
-    setAnalysisResponse(fakeObj.result);
+    setAnalysisResponse(fakeObj.result)
 
     // 3. add to history (same as real function)
-    setHistoryArray([
-      ...historyArray,
-      {
-        id: fakeObj.id,
-        jobListing: jobQuery,
-        result: fakeObj.result,
-        createdAt: fakeObj.createdAt,
-      },
-    ]);
+    setHistoryArray([...historyArray, {id: fakeObj.id, jobListing: jobQuery, result: fakeObj.result, createdAt: fakeObj.createdAt}])
 
-    setIsLoading(false);
-  };
+    setIsLoading(false)
+  }
 
-  // //REAL HANDLE ANALYZE FUNCTION
-  // //data must be converted to JSON to travel over the internet
+
+
+  //REAL HANDLE ANALYZE FUNCTION
+  //data must be converted to JSON to travel over the internet
   // const handleAnalyze = async(jobQuery: string) => {
   //   //set the loading state to true while we are waiting for the response from the backend
   //   setIsLoading(true)
@@ -192,17 +183,22 @@ function App() {
   //   setIsLoading(false)
   // }
 
+
+
   //HANDLE AUTH SUCCESS FUNCTION
   const handleAuthSuccess = (user: string) => {
-    setIsLoggedIn(true);
-    setUserName(user);
-    setIsAuthModalOpen(false);
-  };
+    setIsLoggedIn(true)
+    setUserName(user)
+    setIsAuthModalOpen(false)
+  }
 
   return (
     <main>
+
       {/* ===== ALWAYS SHOWS (no condition) ===== */}
       <h1>Skill Sync</h1>
+
+
 
       {/* ===== MASTER SWITCH: logged in or not? ===== */}
       {isLoggedIn ? (
@@ -210,97 +206,30 @@ function App() {
           <p>{userName}, leave nothing to chance.</p>
 
           {isLoading ? (
-            <Loading />
-          ) : (
-            <AnalysisResult llmResponse={analysisResponse} />
+            <Loading/>
+          ): (
+            <AnalysisResult llmResponse={analysisResponse}/>
           )}
 
-          <Button
-            onClick={() => {
-              setIsResumeModalOpen(true);
-            }}
-          >
-            Upload Resume
-          </Button>
-          <Button
-            onClick={() => {
-              setIsJobModalOpen(true);
-            }}
-          >
-            Upload Job Posting
-          </Button>
-          <Button
-            onClick={() => {
-              setIsHistoryModalOpen(true);
-            }}
-          >
-            Analysis History
-          </Button>
+          <Button onClick={()=>{setIsResumeModalOpen(true)}}>Upload Resume</Button>
+          <Button onClick={()=>{setIsJobModalOpen(true)}}>Upload Job Posting</Button>
+          <Button onClick={()=>{setIsHistoryModalOpen(true)}}>Analysis History</Button>
 
-          {isResumeModalOpen && (
-            <ResumeModal
-              isOpen={isResumeModalOpen}
-              onClose={() => {
-                setIsResumeModalOpen(false);
-              }}
-              onSave={(filePath) => {
-                setResumeFilePath(filePath);
-              }}
-            />
-          )}
-          {isJobModalOpen && (
-            <JobPostingModal
-              isOpen={isJobModalOpen}
-              onClose={() => {
-                setIsJobModalOpen(false);
-              }}
-              onAnalyze={handleAnalyzePlaceholder}
-            />
-          )}
-          {isHistoryModalOpen && (
-            <HistoryModal
-              isOpen={isHistoryModalOpen}
-              onClose={() => {
-                setIsHistoryModalOpen(false);
-              }}
-              historyArray={historyArray}
-            />
-          )}
+          { isResumeModalOpen && <ResumeModal isOpen={isResumeModalOpen} onClose={()=>{setIsResumeModalOpen(false)}} onSave={(filePath)=>{setResumeFilePath(filePath)}}/>}
+          { isJobModalOpen && <JobPostingModal isOpen={isJobModalOpen} onClose={()=>{setIsJobModalOpen(false)}} onAnalyze={handleAnalyzePlaceholder}/>}
+          { isHistoryModalOpen && <HistoryModal isOpen={isHistoryModalOpen} onClose={()=>{setIsHistoryModalOpen(false)}} historyArray={historyArray}/>}
         </div>
       ) : (
         <div>
           <p>Align your skills. Accelerate your career.</p>
 
-          <Button
-            onClick={() => {
-              setAuthMode("login");
-              setIsAuthModalOpen(true);
-            }}
-          >
-            Login
-          </Button>
-          <Button
-            onClick={() => {
-              setAuthMode("signup");
-              setIsAuthModalOpen(true);
-            }}
-          >
-            Signup
-          </Button>
+          <Button onClick={()=>{setAuthMode('login'); setIsAuthModalOpen(true)}}>Login</Button>
+          <Button onClick={()=>{setAuthMode('signup'); setIsAuthModalOpen(true)}}>Signup</Button>
 
-          {isAuthModalOpen && (
-            <AuthModal
-              isOpen={isAuthModalOpen}
-              onClose={() => {
-                setIsAuthModalOpen(false);
-              }}
-              onAuthSuccess={handleAuthSuccess}
-              authMode={authMode}
-              setAuthMode={setAuthMode}
-            />
-          )}
+          {isAuthModalOpen && <AuthModal isOpen={isAuthModalOpen} onClose={()=>{setIsAuthModalOpen(false)}} onAuthSuccess={handleAuthSuccess} authMode={authMode} setAuthMode={setAuthMode}/>}
         </div>
       )}
+
     </main>
   );
 }
