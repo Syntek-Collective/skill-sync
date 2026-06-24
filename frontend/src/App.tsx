@@ -176,106 +176,99 @@ function App() {
   }) => {
     setIsLoading(true);
     // fakes what the backend will eventually do, so we can build/test the frontend
-    const handleAnalyzePlaceholder = (jobData: {
-      title: string;
-      posting: string;
-    }) => {
-      setIsLoading(true); // show the loading spinner while "analyzing"
+    const fakeResult = JSON.stringify({
+      matchScore: 70,
+      fitLevel: "Good Fit with Gaps",
+      fitMessage:
+        "You're a strong candidate but missing a few key skills you can build.",
+      matchedSkills: ["React", "TypeScript", "Node.js"],
+      missingSkills: [
+        { skill: "AWS", importance: "critical" },
+        { skill: "Docker", importance: "nice-to-have" },
+      ],
+      suggestions: [
+        "Take an AWS certification course",
+        "Build a project using Docker",
+      ],
+      timeToReady: "2-3 months of focused learning",
+    });
 
-      // make FAKE structured data (the shape the real AI/backend will return), STRINGIFIED
-      const fakeResult = JSON.stringify({
-        matchScore: 70,
-        fitLevel: "Good Fit with Gaps",
-        fitMessage:
-          "You're a strong candidate but missing a few key skills you can build.",
-        matchedSkills: ["React", "TypeScript", "Node.js"],
-        missingSkills: [
-          { skill: "AWS", importance: "critical" },
-          { skill: "Docker", importance: "nice-to-have" },
-        ],
-        suggestions: [
-          "Take an AWS certification course",
-          "Build a project using Docker",
-        ],
-        timeToReady: "2-3 months of focused learning",
-      });
-
-      const fakeObj = {
-        id: "6767",
-        result: fakeResult,
-        createdAt: new Date().toISOString(),
-      };
-
-      // store the current result so AnalysisResult shows it
-      setAnalysisResponse(fakeObj.result);
-
-      // add to history - use the title as the readable label
-      setHistoryArray([
-        ...historyArray,
-        {
-          id: fakeObj.id,
-          jobListing: jobQuery, // the job that was analyzed
-          result: fakeObj.result, // the stringified analysis
-          createdAt: fakeObj.createdAt,
-        },
-      ]);
-
-      setIsLoading(false);
+    const fakeObj = {
+      id: "6767",
+      result: fakeResult,
+      createdAt: new Date().toISOString(),
     };
 
-    // ===== REAL ANALYZE FUNCTION (commented out until the backend exists) =====
-    // this will replace the placeholder - it actually calls our backend
-    // // data must be converted to JSON to travel over the internet
-    // const handleAnalyze = async(jobQuery: string) => {
-    //   //set the loading state to true while we are waiting for the response from the backend
-    //   setIsLoading(true)
+    // store the current result so AnalysisResult shows it
+    setAnalysisResponse(fakeObj.result);
 
-    //   const response = await fetch('http://localhost:3000/api/analyze', {
-    //     //type of request we are making to the back end
-    //     method: 'POST',
-    //     //info about request: describes the data type of the in the request body (JSON)
-    //     headers: { 'Content-Type': 'application/json' },
-    //     //actual data sent in request - converts our JS object (resume + job) into a JSON string to send
-    //     body: JSON.stringify({ resume: resumeFilePath, jobPosting: jobQuery })
-    //   })
+    // add to history - use the title as the readable label
+    setHistoryArray([
+      ...historyArray,
+      {
+        id: fakeObj.id,
+        jobListing: jobData.title,
+        result: fakeObj.result,
+        createdAt: fakeObj.createdAt,
+      },
+    ]);
 
-    //   //convert the JSON response to a JavaScript
-    //   const data = await response.json()
+    setIsLoading(false);
+  };
 
-    //   //store the result so AnalysisResult shows it on screen
-    //   setAnalysisResponse(data.result)
+  // ===== REAL ANALYZE FUNCTION (commented out until the backend exists) =====
+  // this will replace the placeholder - it actually calls our backend
+  // // data must be converted to JSON to travel over the internet
+  // const handleAnalyze = async(jobQuery: string) => {
+  //   //set the loading state to true while we are waiting for the response from the backend
+  //   setIsLoading(true)
 
-    //   // add this analysis to history, keeping past entries
-    //   setHistoryArray([
-    //     ...historyArray,
-    //     {
-    //       id: String(data.id),               // ensure it's a string (matches our type)
-    //       jobListing: jobQuery,
-    //       result: data.result,
-    //       createdAt: String(data.createdAt)  // ensure it's a string (matches our type)
-    //     }
-    //   ])
+  //   const response = await fetch('http://localhost:3000/api/analyze', {
+  //     //type of request we are making to the back end
+  //     method: 'POST',
+  //     //info about request: describes the data type of the in the request body (JSON)
+  //     headers: { 'Content-Type': 'application/json' },
+  //     //actual data sent in request - converts our JS object (resume + job) into a JSON string to send
+  //     body: JSON.stringify({ resume: resumeFilePath, jobPosting: jobQuery })
+  //   })
 
-    //   //once the information is received we are no longer loading
-    //   setIsLoading(false)
-    // }
+  //   //convert the JSON response to a JavaScript
+  //   const data = await response.json()
 
-    // ===== AUTH SUCCESS - called when login/signup succeeds =====
-    const handleAuthSuccess = (user: string) => {
-      setIsLoggedIn(true); // flip to logged-in view
-      setUserName(user); // store their name
-      setIsAuthModalOpen(false); // close the auth modal
-    };
+  //   //store the result so AnalysisResult shows it on screen
+  //   setAnalysisResponse(data.result)
 
-    // ===== LOGOUT =====
-    const handleLogout = async () => {
-      await supabase.auth.signOut(); // end the Supabase session
-      setIsLoggedIn(false); // flip back to logged-out view
-      setUserName(""); // clear the name
-    };
+  //   // add this analysis to history, keeping past entries
+  //   setHistoryArray([
+  //     ...historyArray,
+  //     {
+  //       id: String(data.id),               // ensure it's a string (matches our type)
+  //       jobListing: jobQuery,
+  //       result: data.result,
+  //       createdAt: String(data.createdAt)  // ensure it's a string (matches our type)
+  //     }
+  //   ])
 
-    return (
-      <main className="relative min-h-screen flex flex-col items-center text-center px-6 pt-10">
+  //   //once the information is received we are no longer loading
+  //   setIsLoading(false)
+  // }
+
+  // ===== AUTH SUCCESS - called when login/signup succeeds =====
+  const handleAuthSuccess = (user: string) => {
+    setIsLoggedIn(true); // flip to logged-in view
+    setUserName(user); // store their name
+    setIsAuthModalOpen(false); // close the auth modal
+  };
+
+  // ===== LOGOUT =====
+  const handleLogout = async () => {
+    await supabase.auth.signOut(); // end the Supabase session
+    setIsLoggedIn(false); // flip back to logged-out view
+    setUserName(""); // clear the name
+  };
+
+  return (
+    <main className="relative min-h-screen flex flex-col items-center text-center px-6 pt-10">
         {/* LOGOUT BUTTON - only shows when logged in (top-right corner) */}
         {isLoggedIn && (
           <button
@@ -433,9 +426,8 @@ function App() {
             )}
           </div>
         )}
-      </main>
-    );
-  };
+    </main>
+  );
 }
 
 export default App;
