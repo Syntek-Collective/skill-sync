@@ -125,18 +125,18 @@ import HistoryModal from "./components/HistoryModal";
 import skillSyncLogo from "./assets/skillsync-transparent.png";
 
 function App() {
-  // ===== STATE (App.tsx is the hub - it holds the data the whole app shares) =====
-  const [isLoggedIn, setIsLoggedIn] = useState(false);          // are they logged in?
-  const [isLoading, setIsLoading] = useState(false);            // is an analysis running?
-  const [userName, setUserName] = useState("");                 // the logged-in user's name
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);// is the auth modal open?
-  const [authMode, setAuthMode] = useState<"login" | "signup">("login"); // login vs signup
-  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);     // resume modal open?
-  const [resumeFilePath, setResumeFilePath] = useState<string | null>(null); // the uploaded resume's path
-  const [isJobModalOpen, setIsJobModalOpen] = useState(false);  // job modal open?
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);   // history modal open?
-  const [analysisResponse, setAnalysisResponse] = useState(""); // the current analysis (stringified)
-  const [historyArray, setHistoryArray] = useState<             // the list of past analyses
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [userName, setUserName] = useState("");
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
+  const [resumeFilePath, setResumeFilePath] = useState<string | null>(null);
+  const [isJobModalOpen, setIsJobModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [analysisResponse, setAnalysisResponse] = useState("");
+  const [resumeUploadMessage, setResumeUploadMessage] = useState("");
+  const [historyArray, setHistoryArray] = useState<
     { id: string; jobListing: string; result: string; createdAt: string }[]
   >([]);
 
@@ -297,7 +297,9 @@ function App() {
       {isLoggedIn ? (
         // ----- LOGGED IN: the main app -----
         <div>
-          <p className="mt-2 text-sm">{userName}, leave nothing to chance.</p>
+          <p className="mt-2 text-sm text-[#235c2a]">
+            {userName}, leave nothing to chance.
+          </p>
 
           {/* the three action buttons */}
           <div className="mt-10 flex flex-wrap justify-center gap-12">
@@ -313,6 +315,14 @@ function App() {
           </div>
 
           {/* show the spinner while analyzing, otherwise show the result */}
+          </div>
+
+          {resumeUploadMessage && (
+            <p className="mt-4 text-sm font-semibold text-green-800">
+              {resumeUploadMessage}
+            </p>
+          )}
+
           {isLoading ? (
             <Loading />
           ) : (
@@ -325,14 +335,28 @@ function App() {
             />
           )}
 
-          {/* MODALS - each only renders when its "open" state is true */}
+          {historyArray.length > 0 && (
+            <div className="mt-10">
+              <Button
+                onClick={() => {
+                  setIsHistoryModalOpen(true);
+                }}
+              >
+                Analysis History
+              </Button>
+            </div>
+          )}
 
-          {/* RESUME MODAL - uploads the resume, sends back the file path */}
           {isResumeModalOpen && (
             <ResumeModal
               isOpen={isResumeModalOpen}
-              onClose={() => { setIsResumeModalOpen(false); }}
-              onSave={(filePath) => { setResumeFilePath(filePath); }}
+              onClose={() => {
+                setIsResumeModalOpen(false);
+              }}
+              onSave={(filePath) => {
+                setResumeFilePath(filePath);
+                setResumeUploadMessage("Resume uploaded successfully.");
+              }}
             />
           )}
 
