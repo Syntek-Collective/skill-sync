@@ -131,7 +131,7 @@ function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
-  const [resumeFilePath, setResumeFilePath] = useState<string | null>(null);
+  const [, setResumeFilePath] = useState<string | null>(null);
   const [isJobModalOpen, setIsJobModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [analysisResponse, setAnalysisResponse] = useState("");
@@ -171,7 +171,10 @@ function App() {
 
   // ===== PLACEHOLDER ANALYZE FUNCTION (until the backend is built) =====
   // fakes what the backend will eventually do, so we can build/test the frontend
-  const handleAnalyzePlaceholder = (jobQuery: string) => {
+  const handleAnalyzePlaceholder = (jobData: {
+    title: string;
+    posting: string;
+  }) => {
     setIsLoading(true); // show the loading spinner while "analyzing"
 
     // 1. make FAKE structured data (the shape the real AI/backend will return), STRINGIFIED.
@@ -210,7 +213,7 @@ function App() {
       ...historyArray, // spread keeps the existing history
       {
         id: fakeObj.id,
-        jobListing: jobQuery,    // the job that was analyzed
+        jobListing: jobData.title,    // the job that was analyzed
         result: fakeObj.result,  // the stringified analysis
         createdAt: fakeObj.createdAt,
       },
@@ -301,7 +304,7 @@ function App() {
             {userName}, leave nothing to chance.
           </p>
 
-          {/* the three action buttons */}
+          {/* the main action buttons */}
           <div className="mt-10 flex flex-wrap justify-center gap-12">
             <Button onClick={() => { setIsResumeModalOpen(true); }}>
               Upload Resume
@@ -309,14 +312,9 @@ function App() {
             <Button onClick={() => { setIsJobModalOpen(true); }}>
               Upload Job Posting
             </Button>
-            <Button onClick={() => { setIsHistoryModalOpen(true); }}>
-              Analysis History
-            </Button>
           </div>
 
           {/* show the spinner while analyzing, otherwise show the result */}
-          </div>
-
           {resumeUploadMessage && (
             <p className="mt-4 text-sm font-semibold text-green-800">
               {resumeUploadMessage}
