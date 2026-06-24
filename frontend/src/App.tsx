@@ -140,13 +140,18 @@ function App() {
     { id: string; jobListing: string; result: string; createdAt: string }[]
   >([]);
 
+  // ===== CHECK SESSION ON LOAD =====
+  // runs once when the app loads - if there's an existing Supabase session,
+  // log the user back in (so they stay logged in on refresh)
   useEffect(() => {
     const checkSession = async () => {
+      // ask Supabase if there's an active session
       const { data } = await supabase.auth.getSession();
 
       if (data.session) {
         const user = data.session.user;
 
+        // look up the user's username from the profiles table
         const profileResponse = await supabase
           .from("profiles")
           .select("username")
@@ -155,6 +160,7 @@ function App() {
 
         const username = profileResponse.data?.username;
 
+        // log them in with their username (fall back to email if no username)
         setIsLoggedIn(true);
         setUserName(username || user.email || "");
       }
@@ -163,34 +169,58 @@ function App() {
     checkSession();
   }, []);
 
-  //PLACEHOLDER FUNCTION UNTIL BACKEND IS BUILT
+  // ===== PLACEHOLDER ANALYZE FUNCTION (until the backend is built) =====
+  // fakes what the backend will eventually do, so we can build/test the frontend
   const handleAnalyzePlaceholder = (jobQuery: string) => {
-    setIsLoading(true);
-    // 1. make a FAKE data object (same shape the backend would send)
+    setIsLoading(true); // show the loading spinner while "analyzing"
+
+    // 1. make FAKE structured data (the shape the real AI/backend will return), STRINGIFIED.
+    //    we stringify because the result is stored/passed as a STRING everywhere
+    //    (database, history, state) - App.tsx parses it back into an object only when
+    //    handing it to AnalysisResult to display. this keeps storage simple (no schema change).
+    const fakeResult = JSON.stringify({
+      matchScore: 70,                                  // % of the role the resume matches
+      fitLevel: "Good Fit with Gaps",                  // the headline verdict
+      fitMessage:                                      // a constructive explanation
+        "You're a strong candidate but missing a few key skills you can build.",
+      matchedSkills: ["React", "TypeScript", "Node.js"], // skills the resume HAS
+      missingSkills: [                                 // the gap, with priority
+        { skill: "AWS", importance: "critical" },
+        { skill: "Docker", importance: "nice-to-have" },
+      ],
+      suggestions: [                                   // actionable next steps
+        "Take an AWS certification course",
+        "Build a project using Docker",
+      ],
+      timeToReady: "2-3 months of focused learning",   // estimated effort
+    });
+
+    // the full fake object the backend would send (result + metadata)
     const fakeObj = {
-      id: "6767",
-      result: "you're are inducted as a porky piggy pal",
-      createdAt: new Date().toISOString(),
+      id: "6767",                          // a fake id (string, matches our type)
+      result: fakeResult,                  // the stringified structured analysis
+      createdAt: new Date().toISOString(), // a timestamp (string)
     };
 
-    // 2. store the result (same as real function)
+    // 2. store the current result so AnalysisResult shows it on screen
     setAnalysisResponse(fakeObj.result);
 
-    // 3. add to history (same as real function)
+    // 3. add this analysis to history, keeping all the past entries
     setHistoryArray([
-      ...historyArray,
+      ...historyArray, // spread keeps the existing history
       {
         id: fakeObj.id,
-        jobListing: jobQuery,
-        result: fakeObj.result,
+        jobListing: jobQuery,    // the job that was analyzed
+        result: fakeObj.result,  // the stringified analysis
         createdAt: fakeObj.createdAt,
       },
     ]);
 
-    setIsLoading(false);
+    setIsLoading(false); // done "analyzing" - hide the spinner
   };
 
-  // // REAL HANDLE ANALYZE FUNCTION
+  // ===== REAL ANALYZE FUNCTION (commented out until the backend exists) =====
+  // this will replace the placeholder - it actually calls our backend
   // // data must be converted to JSON to travel over the internet
   // const handleAnalyze = async(jobQuery: string) => {
   //   //set the loading state to true while we are waiting for the response from the backend
@@ -226,21 +256,24 @@ function App() {
   //   setIsLoading(false)
   // }
 
-  //HANDLE AUTH SUCCESS FUNCTION
+  // ===== AUTH SUCCESS - called when login/signup succeeds =====
   const handleAuthSuccess = (user: string) => {
-    setIsLoggedIn(true);
-    setUserName(user);
-    setIsAuthModalOpen(false);
+    setIsLoggedIn(true);     // flip to logged-in view
+    setUserName(user);       // store their name
+    setIsAuthModalOpen(false); // close the auth modal
   };
 
+  // ===== LOGOUT =====
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setIsLoggedIn(false);
-    setUserName("");
+    await supabase.auth.signOut(); // end the Supabase session
+    setIsLoggedIn(false);          // flip back to logged-out view
+    setUserName("");               // clear the name
   };
 
   return (
     <main className="relative min-h-screen flex flex-col items-center text-center px-6 pt-10">
+
+      {/* LOGOUT BUTTON - only shows when logged in (top-right corner) */}
       {isLoggedIn && (
         <button
           type="button"
@@ -251,8 +284,7 @@ function App() {
         </button>
       )}
 
-      {/* ===== ALWAYS SHOWS (no condition) ===== */}
-
+      {/* ===== ALWAYS SHOWS (logo + title, no condition) ===== */}
       <img
         src={skillSyncLogo}
         alt="Skill Sync logo"
@@ -261,28 +293,28 @@ function App() {
 
       <h1 className="text-4xl font-bold uppercase">Skill Sync</h1>
 
-      {/* ===== MASTER SWITCH: logged in or not? ===== */}
+      {/* ===== MASTER SWITCH: logged in shows the app, logged out shows login/signup ===== */}
       {isLoggedIn ? (
+        // ----- LOGGED IN: the main app -----
         <div>
           <p className="mt-2 text-sm text-[#235c2a]">
             {userName}, leave nothing to chance.
           </p>
 
+          {/* the three action buttons */}
           <div className="mt-10 flex flex-wrap justify-center gap-12">
-            <Button
-              onClick={() => {
-                setIsResumeModalOpen(true);
-              }}
-            >
+            <Button onClick={() => { setIsResumeModalOpen(true); }}>
               Upload Resume
             </Button>
-            <Button
-              onClick={() => {
-                setIsJobModalOpen(true);
-              }}
-            >
+            <Button onClick={() => { setIsJobModalOpen(true); }}>
               Upload Job Posting
             </Button>
+            <Button onClick={() => { setIsHistoryModalOpen(true); }}>
+              Analysis History
+            </Button>
+          </div>
+
+          {/* show the spinner while analyzing, otherwise show the result */}
           </div>
 
           {resumeUploadMessage && (
@@ -294,7 +326,13 @@ function App() {
           {isLoading ? (
             <Loading />
           ) : (
-            <AnalysisResult llmResponse={analysisResponse} />
+            // parse the stringified result into an object before passing it down
+            // (or pass null if there's no analysis yet - the component handles the empty state)
+            <AnalysisResult
+              parsedResponse={
+                analysisResponse ? JSON.parse(analysisResponse) : null
+              }
+            />
           )}
 
           {historyArray.length > 0 && (
@@ -321,56 +359,47 @@ function App() {
               }}
             />
           )}
+
+          {/* JOB MODAL - collects the job posting, sends it up to analyze */}
           {isJobModalOpen && (
             <JobPostingModal
               isOpen={isJobModalOpen}
-              onClose={() => {
-                setIsJobModalOpen(false);
-              }}
+              onClose={() => { setIsJobModalOpen(false); }}
               onAnalyze={handleAnalyzePlaceholder}
             />
           )}
+
+          {/* HISTORY MODAL - shows the list of past analyses */}
           {isHistoryModalOpen && (
             <HistoryModal
               isOpen={isHistoryModalOpen}
-              onClose={() => {
-                setIsHistoryModalOpen(false);
-              }}
+              onClose={() => { setIsHistoryModalOpen(false); }}
               historyArray={historyArray}
             />
           )}
         </div>
       ) : (
+        // ----- LOGGED OUT: the login/signup view -----
         <div className="flex w-full flex-col items-center">
           <p className="mt-3 text-xl font-semibold">
             Align your skills. Accelerate your career.
           </p>
 
+          {/* login + signup buttons (each sets the mode, then opens the auth modal) */}
           <div className="mt-10 flex w-full justify-center gap-12">
-            <Button
-              onClick={() => {
-                setAuthMode("login");
-                setIsAuthModalOpen(true);
-              }}
-            >
+            <Button onClick={() => { setAuthMode("login"); setIsAuthModalOpen(true); }}>
               Login
             </Button>
-            <Button
-              onClick={() => {
-                setAuthMode("signup");
-                setIsAuthModalOpen(true);
-              }}
-            >
+            <Button onClick={() => { setAuthMode("signup"); setIsAuthModalOpen(true); }}>
               Signup
             </Button>
           </div>
 
+          {/* AUTH MODAL - handles login/signup, calls handleAuthSuccess when done */}
           {isAuthModalOpen && (
             <AuthModal
               isOpen={isAuthModalOpen}
-              onClose={() => {
-                setIsAuthModalOpen(false);
-              }}
+              onClose={() => { setIsAuthModalOpen(false); }}
               onAuthSuccess={handleAuthSuccess}
               authMode={authMode}
               setAuthMode={setAuthMode}
