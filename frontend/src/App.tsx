@@ -162,6 +162,8 @@ function App() {
     checkSession();
   }, []);
 
+
+  
   //PLACEHOLDER FUNCTION UNTIL BACKEND IS BUILT
   const handleAnalyzePlaceholder = (jobQuery: string) => {
     setIsLoading(true);
@@ -189,6 +191,8 @@ function App() {
     setIsLoading(false);
   };
 
+
+  
   // // REAL HANDLE ANALYZE FUNCTION
   // // data must be converted to JSON to travel over the internet
   // const handleAnalyze = async(jobQuery: string) => {
@@ -292,7 +296,7 @@ function App() {
           {isLoading ? (
             <Loading />
           ) : (
-            <AnalysisResult llmResponse={analysisResponse} />
+            <AnalysisResult parsedResponse={analysisResponse ? JSON.parse(analysisResponse) : null } />
           )}
 
           {isResumeModalOpen && (
