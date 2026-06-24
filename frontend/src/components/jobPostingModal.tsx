@@ -5,8 +5,8 @@ import Button from "./ui/Button";
 
 // the shape of what this modal needs from App.tsx
 interface JobPostingModalProps {
-  isOpen: boolean;                                                    // is the modal open?
-  onClose: () => void;                                               // how to close it
+  isOpen: boolean; // is the modal open?
+  onClose: () => void; // how to close it
   onAnalyze: (jobData: { title: string; posting: string }) => void; // send BOTH the title + posting up to App.tsx
 }
 
@@ -43,7 +43,6 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add New Job Posting">
-
       {/* ===== TITLE INPUT (short - one line) ===== */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -51,8 +50,8 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
         </label>
         <input
           type="text"
-          value={jobTitle}                                // show the current title
-          onChange={(e) => setJobTitle(e.target.value)}   // update state as the user types
+          value={jobTitle} // show the current title
+          onChange={(e) => setJobTitle(e.target.value)} // update state as the user types
           className="w-full p-2 border rounded"
           placeholder="e.g. Senior Software Engineer"
         />
@@ -64,9 +63,9 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
           Job Posting
         </label>
         <textarea
-          value={jobPosting}                              // show the current posting
+          value={jobPosting} // show the current posting
           onChange={(e) => setJobPosting(e.target.value)} // update state as the user types
-          className="w-full p-2 border rounded h-40"      // h-40 gives room to paste a description
+          className="w-full p-2 border rounded h-40" // h-40 gives room to paste a description
           placeholder="Paste the full job description here..."
         />
       </div>
@@ -81,6 +80,8 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
 
         {/* analyze - DISABLED until BOTH fields are filled (can't click otherwise) */}
         <Button onClick={handleSubmit} disabled={!jobTitle || !jobPosting}>
+          Analyze
+        </Button>
       </div>
     </Modal>
   );
