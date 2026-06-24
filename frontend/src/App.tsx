@@ -3,7 +3,7 @@
   PRIOR 2 SETUP
 
   What is this component's job?
-  To display the AI's gap analysis on screen after the user submits a job posting 
+  To display the AI's gap analysis on screen after the user submits a job posting
   (with a resume already uploaded)
 
 
@@ -12,18 +12,18 @@
 
 
   What does it need to remember?
-  Nothing - all state is handled on the main page (App.tsx), it is just passed down as props to display 
+  Nothing - all state is handled on the main page (App.tsx), it is just passed down as props to display
 
 
   What does it show?
-  The LLM response & maybe a heading/label - shows nothing/place holder when there 
-  is no result yet 
+  The LLM response & maybe a heading/label - shows nothing/place holder when there
+  is no result yet
 
 
   What does it send back?
-  Nothing/no information is sent back to the parent component (App.tsx) - this component just receives and 
-  displays, so theres no need to track state or send anything back to the main page 
-  
+  Nothing/no information is sent back to the parent component (App.tsx) - this component just receives and
+  displays, so theres no need to track state or send anything back to the main page
+
 
 */
 
@@ -31,7 +31,7 @@
 
   SETUP
 
-  Components describe what to render and the functions describe how the component behaves and the return statement describes 
+  Components describe what to render and the functions describe how the component behaves and the return statement describes
   the UI React renders
 
 
@@ -44,8 +44,8 @@
   1.5 What is the user's name?
   2. Did the user click/navigate resume input popup (modal)
   3. Track the actual resume input box
-  4. Did the user click/navigate to the job listing modal 
-  5. Did the user click/navigate to the history modal 
+  4. Did the user click/navigate to the job listing modal
+  5. Did the user click/navigate to the history modal
   6. Was an analysis performed and therefore need to be displayed
   7. Every time the user submits a job query we need to save this for the history modal
 
@@ -54,17 +54,17 @@
   HELPER FUNCTIONS
   Functions inside React components are typically used to handle events, update state, and encapsulate logic
   because they are defined inside the component they have access to the components state, props, and local variables through closures
-  
-  1. A function to open each modal 
-  2. A function to close each modal 
+
+  1. A function to open each modal
+  2. A function to close each modal
   3. A function to handle saving the user's resume
   4. A function to handle analyzing (running the analysis & adding it to history)
   5. A function to handle login (remember we are using supabase 4 authentication)
 
 
 
-  JSX RETURN 
-  JSX is HTML-looking syntax that describes what shows on screen 
+  JSX RETURN
+  JSX is HTML-looking syntax that describes what shows on screen
   We drop JavaScript into it using curly braces { }
 
   Due to the conditional rendering nature of this application all of the logic lives with the logged-in/logged-out condition
@@ -170,53 +170,48 @@ function App() {
   }, []);
 
   // ===== PLACEHOLDER ANALYZE FUNCTION (until the backend is built) =====
-  // fakes what the backend will eventually do, so we can build/test the frontend
-  const handleAnalyzePlaceholder = (jobQuery: string) => {
-    setIsLoading(true); // show the loading spinner while "analyzing"
+  const handleAnalyzePlaceholder = (jobData: { title: string; posting: string }) => {
+    setIsLoading(true);
 
-    // 1. make FAKE structured data (the shape the real AI/backend will return), STRINGIFIED.
-    //    we stringify because the result is stored/passed as a STRING everywhere
-    //    (database, history, state) - App.tsx parses it back into an object only when
-    //    handing it to AnalysisResult to display. this keeps storage simple (no schema change).
+    // make FAKE structured data (the shape the real AI/backend will return), STRINGIFIED
     const fakeResult = JSON.stringify({
-      matchScore: 70,                                  // % of the role the resume matches
-      fitLevel: "Good Fit with Gaps",                  // the headline verdict
-      fitMessage:                                      // a constructive explanation
+      matchScore: 70,
+      fitLevel: "Good Fit with Gaps",
+      fitMessage:
         "You're a strong candidate but missing a few key skills you can build.",
-      matchedSkills: ["React", "TypeScript", "Node.js"], // skills the resume HAS
-      missingSkills: [                                 // the gap, with priority
+      matchedSkills: ["React", "TypeScript", "Node.js"],
+      missingSkills: [
         { skill: "AWS", importance: "critical" },
         { skill: "Docker", importance: "nice-to-have" },
       ],
-      suggestions: [                                   // actionable next steps
+      suggestions: [
         "Take an AWS certification course",
         "Build a project using Docker",
       ],
-      timeToReady: "2-3 months of focused learning",   // estimated effort
+      timeToReady: "2-3 months of focused learning",
     });
 
-    // the full fake object the backend would send (result + metadata)
     const fakeObj = {
-      id: "6767",                          // a fake id (string, matches our type)
-      result: fakeResult,                  // the stringified structured analysis
-      createdAt: new Date().toISOString(), // a timestamp (string)
+      id: "6767",
+      result: fakeResult,
+      createdAt: new Date().toISOString(),
     };
 
-    // 2. store the current result so AnalysisResult shows it on screen
+    // store the current result so AnalysisResult shows it
     setAnalysisResponse(fakeObj.result);
 
-    // 3. add this analysis to history, keeping all the past entries
+    // add to history - use the title as the readable label
     setHistoryArray([
-      ...historyArray, // spread keeps the existing history
+      ...historyArray,
       {
         id: fakeObj.id,
-        jobListing: jobQuery,    // the job that was analyzed
-        result: fakeObj.result,  // the stringified analysis
+        jobListing: jobData.title,   // the job title (readable label for history)
+        result: fakeObj.result,
         createdAt: fakeObj.createdAt,
       },
     ]);
 
-    setIsLoading(false); // done "analyzing" - hide the spinner
+    setIsLoading(false);
   };
 
   // ===== REAL ANALYZE FUNCTION (commented out until the backend exists) =====
@@ -314,9 +309,6 @@ function App() {
             </Button>
           </div>
 
-          {/* show the spinner while analyzing, otherwise show the result */}
-          </div>
-
           {resumeUploadMessage && (
             <p className="mt-4 text-sm font-semibold text-green-800">
               {resumeUploadMessage}
@@ -345,6 +337,13 @@ function App() {
                 Analysis History
               </Button>
             </div>
+          )}
+
+          {/* RESUME STATUS - shows when a resume has been uploaded */}
+          {resumeFilePath && (
+            <p className="mt-4 text-sm text-green-700">
+              Resume uploaded ✓
+            </p>
           )}
 
           {isResumeModalOpen && (
