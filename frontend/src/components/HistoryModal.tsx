@@ -82,7 +82,7 @@ function HistoryModal({ isOpen, onClose, historyArray }: HistoryModalProps) {
             {historyArray.map((item) => {
 
               // parse THIS item's result safely (skip it if the JSON is bad)
-              let analysis = null;
+              let analysis;
               try {
                 analysis = JSON.parse(item.result);
               } catch {

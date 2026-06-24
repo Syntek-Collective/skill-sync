@@ -3,7 +3,7 @@
   PRIOR 2 SETUP
 
   What is this component's job?
-  To display the AI's gap analysis on screen after the user submits a job posting 
+  To display the AI's gap analysis on screen after the user submits a job posting
   (with a resume already uploaded)
 
 
@@ -12,18 +12,18 @@
 
 
   What does it need to remember?
-  Nothing - all state is handled on the main page (App.tsx), it is just passed down as props to display 
+  Nothing - all state is handled on the main page (App.tsx), it is just passed down as props to display
 
 
   What does it show?
-  The LLM response & maybe a heading/label - shows nothing/place holder when there 
-  is no result yet 
+  The LLM response & maybe a heading/label - shows nothing/place holder when there
+  is no result yet
 
 
   What does it send back?
-  Nothing/no information is sent back to the parent component (App.tsx) - this component just receives and 
-  displays, so theres no need to track state or send anything back to the main page 
-  
+  Nothing/no information is sent back to the parent component (App.tsx) - this component just receives and
+  displays, so theres no need to track state or send anything back to the main page
+
 
 */
 
@@ -31,7 +31,7 @@
 
   SETUP
 
-  Components describe what to render and the functions describe how the component behaves and the return statement describes 
+  Components describe what to render and the functions describe how the component behaves and the return statement describes
   the UI React renders
 
 
@@ -44,8 +44,8 @@
   1.5 What is the user's name?
   2. Did the user click/navigate resume input popup (modal)
   3. Track the actual resume input box
-  4. Did the user click/navigate to the job listing modal 
-  5. Did the user click/navigate to the history modal 
+  4. Did the user click/navigate to the job listing modal
+  5. Did the user click/navigate to the history modal
   6. Was an analysis performed and therefore need to be displayed
   7. Every time the user submits a job query we need to save this for the history modal
 
@@ -54,17 +54,17 @@
   HELPER FUNCTIONS
   Functions inside React components are typically used to handle events, update state, and encapsulate logic
   because they are defined inside the component they have access to the components state, props, and local variables through closures
-  
-  1. A function to open each modal 
-  2. A function to close each modal 
+
+  1. A function to open each modal
+  2. A function to close each modal
   3. A function to handle saving the user's resume
   4. A function to handle analyzing (running the analysis & adding it to history)
   5. A function to handle login (remember we are using supabase 4 authentication)
 
 
 
-  JSX RETURN 
-  JSX is HTML-looking syntax that describes what shows on screen 
+  JSX RETURN
+  JSX is HTML-looking syntax that describes what shows on screen
   We drop JavaScript into it using curly braces { }
 
   Due to the conditional rendering nature of this application all of the logic lives with the logged-in/logged-out condition
@@ -159,12 +159,16 @@ function App() {
     checkSession();
   }, []);
 
-  const handleAnalyzePlaceholder = (jobQuery: string) => {
+  // ===== PLACEHOLDER ANALYZE FUNCTION (until the backend is built) =====
+  const handleAnalyzePlaceholder = (jobData: { title: string; posting: string }) => {
     setIsLoading(true);
+
+    // make FAKE structured data (the shape the real AI/backend will return), STRINGIFIED
     const fakeResult = JSON.stringify({
       matchScore: 70,
       fitLevel: "Good Fit with Gaps",
-      fitMessage: "You're a strong candidate but missing a few key skills.",
+      fitMessage:
+        "You're a strong candidate but missing a few key skills you can build.",
       matchedSkills: ["React", "TypeScript", "Node.js"],
       missingSkills: [
         { skill: "AWS", importance: "critical" },
@@ -174,7 +178,7 @@ function App() {
         "Take an AWS certification course",
         "Build a project using Docker",
       ],
-      timeToReady: "2-3 months",
+      timeToReady: "2-3 months of focused learning",
     });
 
     const fakeObj = {
@@ -183,19 +187,61 @@ function App() {
       createdAt: new Date().toISOString(),
     };
 
+    // store the current result so AnalysisResult shows it
     setAnalysisResponse(fakeObj.result);
+
+    // add to history - use the title as the readable label
     setHistoryArray([
       ...historyArray,
       {
         id: fakeObj.id,
-        jobListing: jobQuery,
+        jobListing: jobData.title,   // the job title (readable label for history)
         result: fakeObj.result,
         createdAt: fakeObj.createdAt,
       },
     ]);
+
     setIsLoading(false);
   };
 
+  // ===== REAL ANALYZE FUNCTION (commented out until the backend exists) =====
+  // this will replace the placeholder - it actually calls our backend
+  // // data must be converted to JSON to travel over the internet
+  // const handleAnalyze = async(jobQuery: string) => {
+  //   //set the loading state to true while we are waiting for the response from the backend
+  //   setIsLoading(true)
+
+  //   const response = await fetch('http://localhost:3000/api/analyze', {
+  //     //type of request we are making to the back end
+  //     method: 'POST',
+  //     //info about request: describes the data type of the in the request body (JSON)
+  //     headers: { 'Content-Type': 'application/json' },
+  //     //actual data sent in request - converts our JS object (resume + job) into a JSON string to send
+  //     body: JSON.stringify({ resume: resumeFilePath, jobPosting: jobQuery })
+  //   })
+
+  //   //convert the JSON response to a JavaScript
+  //   const data = await response.json()
+
+  //   //store the result so AnalysisResult shows it on screen
+  //   setAnalysisResponse(data.result)
+
+  //   // add this analysis to history, keeping past entries
+  //   setHistoryArray([
+  //     ...historyArray,
+  //     {
+  //       id: String(data.id),               // ensure it's a string (matches our type)
+  //       jobListing: jobQuery,
+  //       result: data.result,
+  //       createdAt: String(data.createdAt)  // ensure it's a string (matches our type)
+  //     }
+  //   ])
+
+  //   //once the information is received we are no longer loading
+  //   setIsLoading(false)
+  // }
+
+  // ===== AUTH SUCCESS - called when login/signup succeeds =====
   const handleAuthSuccess = (user: string) => {
     setIsLoggedIn(true);
     setUserName(user);
@@ -251,17 +297,36 @@ function App() {
             </p>
           )}
 
-          <div className="mt-8">
-            {isLoading ? (
-              <Loading />
-            ) : (
-              <AnalysisResult
-                parsedResponse={
-                  analysisResponse ? JSON.parse(analysisResponse) : null
-                }
-              />
-            )}
-          </div>
+          {isLoading ? (
+            <Loading />
+          ) : (
+            // parse the stringified result into an object before passing it down
+            // (or pass null if there's no analysis yet - the component handles the empty state)
+            <AnalysisResult
+              parsedResponse={
+                analysisResponse ? JSON.parse(analysisResponse) : null
+              }
+            />
+          )}
+
+          {historyArray.length > 0 && (
+            <div className="mt-10">
+              <Button
+                onClick={() => {
+                  setIsHistoryModalOpen(true);
+                }}
+              >
+                Analysis History
+              </Button>
+            </div>
+          )}
+
+          {/* RESUME STATUS - shows when a resume has been uploaded */}
+          {resumeFilePath && (
+            <p className="mt-4 text-sm text-green-700">
+              Resume uploaded ✓
+            </p>
+          )}
 
           {/* Modals */}
           {isResumeModalOpen && (
