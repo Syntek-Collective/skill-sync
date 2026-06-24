@@ -46,7 +46,7 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
       {/* ===== TITLE INPUT (short - one line) ===== */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Job Title
+          Job Posting
         </label>
         <input
           type="text"
