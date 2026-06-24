@@ -339,6 +339,13 @@ function App() {
             </div>
           )}
 
+          {/* RESUME STATUS - shows when a resume has been uploaded */}
+          {resumeFilePath && (
+            <p className="mt-4 text-sm text-green-700">
+              Resume uploaded ✓
+            </p>
+          )}
+
           {isResumeModalOpen && (
             <ResumeModal
               isOpen={isResumeModalOpen}
