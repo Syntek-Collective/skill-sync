@@ -2,7 +2,7 @@ import { PDFParse } from "pdf-parse"
 
 //Accepts the raw PDF file data and returns the extracted text
 
-export async function textFromPDF(fileBuffer: Buffer): Promise<string> {
+export async function textFromPdf(fileBuffer: Buffer): Promise<string> {
     //Create a PDF parser using the PDF file data.
     const parser = new PDFParse({ data: fileBuffer });
 
