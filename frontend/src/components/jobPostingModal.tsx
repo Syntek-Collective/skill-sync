@@ -5,9 +5,9 @@ import Button from "./ui/Button";
 
 // the shape of what this modal needs from App.tsx
 interface JobPostingModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onAnalyze: (jobPosting: string) => void;
+  isOpen: boolean;                                                    // is the modal open?
+  onClose: () => void;                                               // how to close it
+  onAnalyze: (jobData: { title: string; posting: string }) => void; // send BOTH the title + posting up to App.tsx
 }
 
 const JobPostingModal: React.FC<JobPostingModalProps> = ({
@@ -22,14 +22,16 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
   // track an error message to show if something's missing
   const [error, setError] = useState<string | null>(null);
 
-  const handleAnalyze = () => {
-    if (!jobTitle) {
-      setError("Job title is required.");
+  // runs when the user clicks "Analyze"
+  // named handleSubmit (NOT handleAnalyze) because this modal's job is to
+  // VALIDATE + HAND OFF - the ACTUAL analyzing happens in App.tsx's handleAnalyze
+  const handleSubmit = () => {
+    // GUARD: require BOTH a title AND a posting
+    // if EITHER is empty, show an error and stop (don't hand off)
+    if (!jobTitle || !jobPosting) {
+      setError("Both a job title and a job posting are required.");
       return;
     }
-
-    // Clear error before proceeding
-    setError(null)
 
     // both filled - hand BOTH up to App.tsx (as one object holding both)
     // App.tsx uses the title for the history label + the posting for the analysis
@@ -49,8 +51,8 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
         </label>
         <input
           type="text"
-          value={jobTitle}
-          onChange={(e) => setJobTitle(e.target.value)}
+          value={jobTitle}                                // show the current title
+          onChange={(e) => setJobTitle(e.target.value)}   // update state as the user types
           className="w-full p-2 border rounded"
           placeholder="e.g. Senior Software Engineer"
         />
@@ -76,9 +78,9 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
       <div className="flex justify-end gap-2">
         {/* cancel - just close, no analysis */}
         <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleAnalyze} disabled={!jobTitle}>
-          Analyze
-        </Button>
+
+        {/* analyze - DISABLED until BOTH fields are filled (can't click otherwise) */}
+        <Button onClick={handleSubmit} disabled={!jobTitle || !jobPosting}>
       </div>
     </Modal>
   );
