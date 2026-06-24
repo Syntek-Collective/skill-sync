@@ -2,6 +2,7 @@ import React, { useState } from "react";
 
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
+import {supabase} from "../supabaseClient";
 
 // the shape of what this modal needs from App.tsx
 interface JobPostingModalProps {
@@ -25,21 +26,34 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
   // runs when the user clicks "Analyze"
   // named handleSubmit (NOT handleAnalyze) because this modal's job is to
   // VALIDATE + HAND OFF - the ACTUAL analyzing happens in App.tsx's handleAnalyze
-  const handleSubmit = () => {
-    // GUARD: require BOTH a title AND a posting
-    // if EITHER is empty, show an error and stop (don't hand off)
-    if (!jobTitle || !jobPosting) {
-      setError("Both a job title and a job posting are required.");
-      return;
+const handleSubmit = async () => {
+  if (!jobTitle.trim() || !jobPosting.trim()) {
+    setError("Both a job title and a job posting are required.");
+    return;
+  }
+
+  try {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData.user) {
+      throw new Error("You must be logged in to save a job posting");
     }
 
-    // both filled - hand BOTH up to App.tsx (as one object holding both)
-    // App.tsx uses the title for the history label + the posting for the analysis
-    onAnalyze({ title: jobTitle, posting: jobPosting });
+    // Insert only the columns that actually exist in your dashboard screenshot
+    const { error: insertError } = await supabase.from("job_postings").insert({
+      user_id: userData.user.id,
+      job_title: jobTitle,
+      extracted_text: jobPosting, // Saves the full job description
+    });
 
-    // close the modal (App.tsx takes over - runs the analysis + shows loading)
+    if (insertError) throw insertError;
+
+    onAnalyze({ title: jobTitle, posting: jobPosting });
     onClose();
-  };
+  } catch (err: any) {
+    console.error("Error saving job posting:", err);
+    setError("Failed to save job posting. Please check the console.");
+  }
+};
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add New Job Posting">
