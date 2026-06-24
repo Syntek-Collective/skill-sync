@@ -27,10 +27,25 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
     setError(null);
 
     try {
+      // Ask Supabase who the currently logged-in user is.
+      // We need this id for both the Storage path and the resumes table row.
+      const { data: userData, error: userError } =
+        await supabase.auth.getUser();
+
+      // Stop the upload if Supabase does not find an active logged-in user.
+      if (userError || !userData.user) {
+        throw new Error("You must be logged in to upload a resume");
+      }
+
+      // Save the authenticated user's id so this resume belongs to the correct user.
+      const userId = userData.user.id;
+
       // Create a unique file name using timestamp to prevent overwrites
       const fileExt = selectedFile.name.split(".").pop();
       const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `resumes/${fileName}`;
+
+      //Store resumes inside a user-specific folder in the "resumes" bucket.
+      const filePath = `${userId}/${fileName}`;
 
       // Upload the file to the 'resumes' bucket in Supabase
       const { error: uploadError } = await supabase.storage
@@ -38,6 +53,19 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
         .upload(filePath, selectedFile);
 
       if (uploadError) throw uploadError;
+
+      //Save a database row that points to the uploaded resume file.
+      //The actual file lives in Storage; this row lets the app find it later
+      const resumeInsertResponse = await supabase.from("resumes").insert({
+        user_id: userId,
+        title: selectedFile.name,
+        file_name: selectedFile.name,
+        file_path: filePath,
+        extracted_text: "",
+      });
+
+      const insertError = resumeInsertResponse.error;
+      if (insertError) throw insertError;
 
       // Success: Trigger onSave with the path, then close
       onSave(filePath);
@@ -54,10 +82,23 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
     <Modal isOpen={isOpen} onClose={onClose} title="Upload your resume">
       {/* File upload block */}
       <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Upload your resume (PDF/DOCX)
+        <label
+          htmlFor="resume-upload"
+          className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-[#9caf9a] bg-[#f7faf6] px-6 py-5 text-center transition hover:border-[#003d06] hover:bg-[#eef8ec]"
+        >
+          <span className="text-sm font-semibold text-[#003d06]">
+            Choose resume file
+          </span>
+          <span className="mt-2 text-xs text-[#5f6b61]">
+            PDF or DOCX, max 5 MB
+          </span>
+          <span className="mt-3 text-xs text-[#235c2a]">
+            {selectedFile ? selectedFile.name : "No file selected yet"}
+          </span>
         </label>
+
         <input
+          id="resume-upload"
           type="file"
           accept=".pdf, .docx"
           onChange={(e) => {
@@ -65,11 +106,8 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
               setSelectedFile(e.target.files[0]);
             }
           }}
-          className="block w-full text-sm text-green-700"
+          className="hidden"
         />
-        <p className="text-xs text-gray-500 mt-2">
-          {selectedFile ? `Selected: ${selectedFile.name}` : "No file selected"}
-        </p>
       </div>
 
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}

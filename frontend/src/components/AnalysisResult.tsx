@@ -25,19 +25,23 @@
 
 */
 
+type AnalysisResultProps = {
+  llmResponse: string;
+};
+
 //function that returns the the response display on the UI
-function AnalysisResult({ llmResponse }) {
+function AnalysisResult({ llmResponse }: AnalysisResultProps) {
   return (
-    <div className="mt-8">
-      <h2 className="text-lg font-semibold uppercase tracking-wide">
+    <section className="mt-10 w-full max-w-3xl rounded-lg border border-green-900/20 bg-white/80 p-6 text-left shadow-md">
+      <h2 className="text-lg font-semibold uppercase tracking-wide text-green-950">
         Skill Gap Analysis
       </h2>
-      <p className="mt-3 text-sm opacity-80">
+      <div className="mt-4 min-h-32 rounded-md border border-green-900/10 bg-white p-4 text-xs text-[#4f5f52]">
         {llmResponse
           ? llmResponse
           : "Your analysis will appear here once you submit a job posting."}
-      </p>
-    </div>
+      </div>
+    </section>
   );
 }
 

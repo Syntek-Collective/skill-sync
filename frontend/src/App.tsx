@@ -135,6 +135,7 @@ function App() {
   const [isJobModalOpen, setIsJobModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [analysisResponse, setAnalysisResponse] = useState("");
+  const [resumeUploadMessage, setResumeUploadMessage] = useState("");
   const [historyArray, setHistoryArray] = useState<
     { id: string; jobListing: string; result: string; createdAt: string }[]
   >([]);
@@ -263,7 +264,9 @@ function App() {
       {/* ===== MASTER SWITCH: logged in or not? ===== */}
       {isLoggedIn ? (
         <div>
-          <p className="mt-2 text-sm">{userName}, leave nothing to chance.</p>
+          <p className="mt-2 text-sm text-[#235c2a]">
+            {userName}, leave nothing to chance.
+          </p>
 
           <div className="mt-10 flex flex-wrap justify-center gap-12">
             <Button
@@ -280,19 +283,30 @@ function App() {
             >
               Upload Job Posting
             </Button>
-            <Button
-              onClick={() => {
-                setIsHistoryModalOpen(true);
-              }}
-            >
-              Analysis History
-            </Button>
           </div>
+
+          {resumeUploadMessage && (
+            <p className="mt-4 text-sm font-semibold text-green-800">
+              {resumeUploadMessage}
+            </p>
+          )}
 
           {isLoading ? (
             <Loading />
           ) : (
             <AnalysisResult llmResponse={analysisResponse} />
+          )}
+
+          {historyArray.length > 0 && (
+            <div className="mt-10">
+              <Button
+                onClick={() => {
+                  setIsHistoryModalOpen(true);
+                }}
+              >
+                Analysis History
+              </Button>
+            </div>
           )}
 
           {isResumeModalOpen && (
@@ -303,6 +317,7 @@ function App() {
               }}
               onSave={(filePath) => {
                 setResumeFilePath(filePath);
+                setResumeUploadMessage("Resume uploaded successfully.");
               }}
             />
           )}
