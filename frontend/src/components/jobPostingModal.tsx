@@ -6,7 +6,7 @@ import Button from "./ui/Button";
 interface JobPostingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAnalyze: (jobPosting: string) => void;
+  onAnalyze: (jobTitle: string) => void;
 }
 
 const JobPostingModal: React.FC<JobPostingModalProps> = ({
@@ -18,10 +18,20 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const handleAnalyze = () => {
-    if (!jobTitle) {
+    // Added .trim() to ensure users can't just type spaces
+    const trimmedTitle = jobTitle.trim();
+
+    // if (!jobTitle) {
+    //   setError("Job title is required.");
+    //   return;
+    // }
+
+    if (!trimmedTitle) {
       setError("Job title is required.");
-      return;
     }
+
+    // Clear error before proceeding
+    setError(null)
 
     // send the job posting up to App.tsx (which runs the analysis + shows the loading)
     onAnalyze(jobTitle);
@@ -37,8 +47,12 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
         <input
           type="text"
           value={jobTitle}
-          onChange={(e) => setJobTitle(e.target.value)}
-          className="w-full p-2 border rounded"
+          onChange={(e) => {
+            setJobTitle(e.target.value);
+            // 3. Clear error when user starts typing again
+            if (error) setError(null);
+          }}
+          className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
           placeholder="e.g. Senior Software Engineer"
         />
       </div>
@@ -47,7 +61,7 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
 
       <div className="flex justify-end gap-2">
         <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleAnalyze} disabled={!jobTitle}>
+        <Button onClick={handleAnalyze} disabled={!jobTitle.trim()}>
           Analyze
         </Button>
       </div>
