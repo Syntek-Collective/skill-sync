@@ -39,14 +39,17 @@
 import { Request, Response } from 'express'
 
 import getAnalysis from '../services/openaiService'
-import { fetchResumeFile } from '../services/supabaseService'
+import { fetchResumeFile, saveAnalysis } from '../services/supabaseService'
 import { textFromPdf } from '../services/pdfService'
+import { prompt } from '../prompt'
 
 
 // controllers are doers: receive data, do the work, send a response
 const analyzeController = async (req: Request, res: Response) => {
-  // RECEIVE - get the data from the request body
-  const { resume, jobPosting } = req.body   // resume is a filePath string
+  // RECEIVE - get everything the frontend sends
+  // (frontend now also sends the IDs needed for saving)
+  const { resume, jobPosting, userId, resumeId, jobPostingId } = req.body
+  // resume is a filePath string
 
   try {
     // FETCH - get the resume PDF from storage using the filePath (returns a Buffer)
@@ -58,14 +61,23 @@ const analyzeController = async (req: Request, res: Response) => {
     // ANALYZE - send the text + job posting to the AI, get the analysis
     const analysis = await getAnalysis(resumeText, jobPosting)
 
-    // RESPOND - send the analysis back to the frontend
+    // SAVE - store the analysis in the database (so it shows in history)
+    const saved = await saveAnalysis({
+      userId,
+      resumeId,
+      jobPostingId,
+      prompt,
+      result: analysis
+    })
+
+    // RESPOND - send the result back (real id + createdAt from the saved row)
     res.json({
       result: analysis,
-      id: '123',                          // placeholder - saving not wired up yet
-      createdAt: new Date().toISOString() // placeholder
+      id: saved.id,
+      createdAt: saved.created_at
     })
   } catch (error) {
-    // if any step failed (fetch, extract, AI), send an error instead of crashing
+    // if any step failed (fetch, extract, AI, save), send an error instead of crashing
     console.error("Analyze failed:", error)
     res.status(500).json({ error: "Something went wrong. Please try again." })
   }
@@ -73,27 +85,3 @@ const analyzeController = async (req: Request, res: Response) => {
 
 
 export default analyzeController
-
-
-
-
-// //PLACEHOLDER DOING
-// //fake structured result (same shape the real AI will return), stringified - active until the real services are ready
-// const placeholderResult = JSON.stringify({
-//     matchScore: 70,
-//     fitLevel: "Good Fit with Gaps",
-//     fitMessage: "You're a strong candidate but missing a few key skills.",
-//     matchedSkills: ["React", "TypeScript"],
-//     missingSkills: [{ skill: "AWS", importance: "critical" }],
-//     suggestions: ["Take an AWS course"],
-//     timeToReady: "2-3 months"
-// })
-
-// //PLACEHOLDER RESPONSE
-// //JSON is what we need to convert the data to in order for it to travel back to the front end
-// res.json({
-//     //the shape of the response matches the expecatations from the frontend ()
-//     result: placeholderResult,
-//     id: '123',
-//     createdAt: new Date().toISOString()
-// })

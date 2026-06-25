@@ -26,14 +26,14 @@ export type SaveJobPostingInput = {
 };
 
 //Input shape for saving an analysis row
+//The whole analysis is stored in one "result" field (jsonb column) instead of
+//separate matched_skills / skill_gap / summary columns.
 export type SaveAnalysisInput = {
   userId: string;
   resumeId: string;
   jobPostingId: string;
   prompt: string;
-  matchedSkills: unknown;
-  skillGap: unknown;
-  summary: string;
+  result: unknown;
 };
 
 //Downloads a resume PDF from Supabase Storage. 
@@ -97,6 +97,7 @@ export async function saveJobPosting(input: SaveJobPostingInput) {
 }
 
 //Saves the final OpenAI analysis result.
+//The whole analysis object is stored in the "result" column (jsonb).
 export async function saveAnalysis(input: SaveAnalysisInput) {
     const { data, error } = await supabase
         .from("analyses")
@@ -105,9 +106,7 @@ export async function saveAnalysis(input: SaveAnalysisInput) {
             resume_id: input.resumeId,
             job_posting_id: input.jobPostingId,
             prompt: input.prompt,
-            matched_skills: input.matchedSkills,
-            skill_gap: input.skillGap,
-            summary: input.summary,
+            result: input.result,
         })
         .select()
         .single();

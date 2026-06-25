@@ -95,7 +95,7 @@ describe("saveAnalysis", () => {
   it("saves an analysis and returns the saved row", async () => {
     const fakeSavedAnalysis = {
       id: "analysis-123",
-      summary: "Good match",
+      result: '{"matchScore":70,"fitLevel":"Good Fit with Gaps"}',
     };
 
     mockInsert.mockReturnValue({
@@ -109,14 +109,23 @@ describe("saveAnalysis", () => {
       error: null,
     });
 
+    // the whole analysis is now ONE field (result) instead of separate columns
+    const fakeResult = JSON.stringify({
+      matchScore: 70,
+      fitLevel: "Good Fit with Gaps",
+      fitMessage: "Strong candidate with a few gaps.",
+      matchedSkills: ["React", "TypeScript"],
+      missingSkills: [{ skill: "Testing", importance: "critical" }],
+      suggestions: ["Practice writing tests"],
+      timeToReady: "1-2 months",
+    });
+
     const result = await saveAnalysis({
       userId: "user-123",
       resumeId: "resume-123",
       jobPostingId: "job-123",
       prompt: "Compare this resume to this job posting",
-      matchedSkills: ["React", "TypeScript"],
-      skillGap: ["Testing"],
-      summary: "Good match",
+      result: fakeResult,
     });
 
     expect(mockInsert).toHaveBeenCalledWith({
@@ -124,9 +133,7 @@ describe("saveAnalysis", () => {
       resume_id: "resume-123",
       job_posting_id: "job-123",
       prompt: "Compare this resume to this job posting",
-      matched_skills: ["React", "TypeScript"],
-      skill_gap: ["Testing"],
-      summary: "Good match",
+      result: fakeResult,
     });
 
     expect(result).toBe(fakeSavedAnalysis);
@@ -139,7 +146,7 @@ describe("getAnalysesforUser", () => {
       {
         id: "analysis-123",
         user_id: "user-123",
-        summary: "Good match",
+        result: '{"matchScore":70,"fitLevel":"Good Fit with Gaps"}',
       },
     ];
 
