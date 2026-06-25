@@ -1,37 +1,16 @@
-/*
 
-  SERVER
-  A server is a program that runs continuously, waiting to receive requests and send back responses
-  This is the entry point that allows the frontend to ask the backend to do things (ie. get data, run operations, access an LLM, etc.)
-
-  app.ts  v.s  server.ts
-  server.ts is a on-switch for the server - app.ts builds and configures the app
-
-
-  EXPRESS
-  A tool/library/framework that makes building a backend server much easier by handling low level stuff so you don't have to write from scratch
-
-
-  WHAT IS THE PURPOSE OF THIS FILE?
-  Builds the complete configured backend application that is ready to receive and handle requests
-
-
-  ROUTES in app.ts
-  app.ts uses app.use to connect requests to route files - route files are just a way to organize code by feature and keep the main file clean 
-
-  TWO LEVELS OF ROUTING 
-  app.ts sorts by feature (broad) and router files sort by the specific route (which handler)
-
-  For a small application you could skip the route files and do it all directly in this file but as the app grows this becomes less and less feasible
-
-*/
-
-
-import express, { Request, Response } from "express";
+import express, { Request, Response, NextFunction } from "express";
+import cors from "cors";
+import historyRouter from './routes/historyRoutes';
 
 //create a new server application and store it so you can use it
 //the server object that handles requests
 const app = express();
+
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true
+}));
 
 //configure the application - set the settings and instructions so the app know how to behave
 //you're front end sends data as text that isn't readable on the back end
@@ -46,6 +25,16 @@ app.get("/api/test", (req: Request, res: Response) => {
   //...send back a JSON response saying everything is working
   res.json({ status: "ok" });
 });
+
+// Mount routes: Any request starting with /api/history goes here
+app.use('/api/history', historyRouter);
+
+// Global error handler: Catch errors passed via next(error)
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error(err.stack); // Log the error before debugging
+  res.status(500).json({success: false, message: 'Internal Server Error'});
+});
+
 
 
 
