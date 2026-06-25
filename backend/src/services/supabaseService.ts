@@ -32,7 +32,6 @@ export type SaveAnalysisInput = {
   userId: string;
   resumeId: string;
   jobPostingId: string;
-  prompt: string;
   result: unknown;
 };
 
@@ -105,7 +104,6 @@ export async function saveAnalysis(input: SaveAnalysisInput) {
             user_id: input.userId,
             resume_id: input.resumeId,
             job_posting_id: input.jobPostingId,
-            prompt: input.prompt,
             result: input.result,
         })
         .select()

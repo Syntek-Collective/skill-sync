@@ -19,14 +19,14 @@
 
 //import express in order to create the router
 import express from 'express'
-
 import analyzeController from '../controllers/analyzeController'
+import { authMiddleware } from '../middleware/authMiddleware'
 
 //create the router 
 const analyzeRouter = express.Router()
 
 //when a POST request comes to this route, send it to the analyzeController
-analyzeRouter.post('/', analyzeController)
+analyzeRouter.post('/', authMiddleware, analyzeController)
 
 
 //export the router so app.ts can connect to it 

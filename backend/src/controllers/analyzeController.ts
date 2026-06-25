@@ -41,7 +41,6 @@ import { Request, Response } from 'express'
 import getAnalysis from '../services/openaiService'
 import { fetchResumeFile, saveAnalysis } from '../services/supabaseService'
 import { textFromPdf } from '../services/pdfService'
-import { prompt } from '../prompt'
 
 
 // controllers are doers: receive data, do the work, send a response
@@ -66,7 +65,6 @@ const analyzeController = async (req: Request, res: Response) => {
       userId,
       resumeId,
       jobPostingId,
-      prompt,
       result: analysis
     })
 
