@@ -66,7 +66,6 @@ const analyzeController = async (req: Request, res: Response) => {
       userId,
       resumeId,
       jobPostingId,
-      prompt,
       result: analysis
     })
 
