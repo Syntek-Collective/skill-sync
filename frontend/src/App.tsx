@@ -220,11 +220,17 @@ function App() {
         data: { session },
       } = await supabase.auth.getSession();
 
+      if (!session?.access_token) {
+        setAnalysisError("Please log in again before running an analysis.");
+        setIsLoading(false);
+        return;
+      }
+
       const response = await fetch("http://localhost:3000/api/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.access_token}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         // send everything the backend needs: the file path, the job text,
         // and the ids needed to save the analysis row
@@ -369,11 +375,6 @@ function App() {
                 Analysis History
               </Button>
             </div>
-          )}
-
-          {/* RESUME STATUS - shows when a resume has been uploaded */}
-          {resumeFilePath && (
-            <p className="mt-4 text-sm text-green-700">Resume uploaded ✓</p>
           )}
 
           {/* Modals */}
