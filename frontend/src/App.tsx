@@ -157,14 +157,48 @@ function App() {
         const username = profileResponse.data?.username;
         setIsLoggedIn(true);
         setUserName(username || user.email || "");
-        // store the logged-in user's id - the analyze request needs it
         setUserId(user.id);
+
+        // LOAD THE MOST RECENT RESUME so it persists across refreshes
+        const resumeResponse = await supabase
+          .from("resumes")
+          .select("id, file_path")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (resumeResponse.data) {
+          setResumeFilePath(resumeResponse.data.file_path);
+          setResumeId(resumeResponse.data.id);
+          setResumeUploadMessage("Using your most recent resume.");
+        }
+
+        // LOAD PAST ANALYSES (history) - join to job_postings to get the real title
+        const analysesResponse = await supabase
+          .from("analyses")
+          .select("id, result, created_at, job_postings(job_title)")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (analysesResponse.data) {
+          const loadedHistory = analysesResponse.data.map((row: any) => ({
+            id: String(row.id),
+            jobListing: row.job_postings?.job_title || "Untitled job",
+            result:
+              typeof row.result === "string"
+                ? row.result
+                : JSON.stringify(row.result),
+            createdAt: String(row.created_at),
+          }));
+          setHistoryArray(loadedHistory);
+        }
       }
     };
     checkSession();
   }, []);
 
-// ===== REAL ANALYZE FUNCTION - calls our backend =====
+  // ===== REAL ANALYZE FUNCTION - calls our backend =====
   // receives the job data (incl. jobPostingId) from the JobPostingModal
   const handleAnalyze = async (jobData: {
     title: string;
