@@ -29,6 +29,8 @@
 
 import express, { Request, Response } from "express";
 
+import analyzeRoutes from "./routes/analyzeRoutes";
+
 //create a new server application and store it so you can use it
 //the server object that handles requests
 const app = express();
@@ -47,6 +49,8 @@ app.get("/api/test", (req: Request, res: Response) => {
   res.json({ status: "ok" });
 });
 
+//connect the analyze feature
+app.use("/api/analyze", analyzeRoutes);
 
 
 export default app;

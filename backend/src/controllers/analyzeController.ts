@@ -36,58 +36,64 @@
 
 */
 
-
 import { Request, Response } from 'express'
 
 import getAnalysis from '../services/openaiService'
-
-// import { fetchResume } from '../services/supabaseService'      //
-// import { extractText } from '../services/pdfService'          //
-
+import { fetchResumeFile } from '../services/supabaseService'
+import { textFromPdf } from '../services/pdfService'
 
 
-//controllers are doers with the general process of receiving data, performing actions and sending a response
+// controllers are doers: receive data, do the work, send a response
 const analyzeController = async (req: Request, res: Response) => {
-    //RECEIVE 
-    //access the data needed to do anything related to the analyzation process (destructure resume and job listing)
-    //frontend sends data in the request body (req.body) 
-    const { resume, jobPosting } = req.body       //resume is a file path string
+  // RECEIVE - get the data from the request body
+  const { resume, jobPosting } = req.body   // resume is a filePath string
 
+  try {
+    // FETCH - get the resume PDF from storage using the filePath (returns a Buffer)
+    const resumePDF = await fetchResumeFile(resume)
 
-    //PLACEHOLDER DOING
-    //fake structured result (same shape the real AI will return), stringified - active until the real services are ready
-    const placeholderResult = JSON.stringify({
-        matchScore: 70,
-        fitLevel: "Good Fit with Gaps",
-        fitMessage: "You're a strong candidate but missing a few key skills.",
-        matchedSkills: ["React", "TypeScript"],
-        missingSkills: [{ skill: "AWS", importance: "critical" }],
-        suggestions: ["Take an AWS course"],
-        timeToReady: "2-3 months"
-    })
+    // EXTRACT - turn the PDF Buffer into text
+    const resumeText = await textFromPdf(resumePDF)
 
-    //PLACEHOLDER RESPONSE
-    //JSON is what we need to convert the data to in order for it to travel back to the front end
+    // ANALYZE - send the text + job posting to the AI, get the analysis
+    const analysis = await getAnalysis(resumeText, jobPosting)
+
+    // RESPOND - send the analysis back to the frontend
     res.json({
-        //the shape of the response matches the expecatations from the frontend ()
-        result: placeholderResult,
-        id: '123',
-        createdAt: new Date().toISOString()
+      result: analysis,
+      id: '123',                          // placeholder - saving not wired up yet
+      createdAt: new Date().toISOString() // placeholder
     })
-
-
-    // //REAL DOING
-    // //use the file path from req.body and a function passed in from the supabase service file to get the resume PDF
-    // const resumePDF = await fetchResume(resume)
-    // //use the resume PDF document to convert the document to text
-    // const resumeText = await extractText(resumePDF)
-
-
-
-    //REAL RESPONSE
-    
-
+  } catch (error) {
+    // if any step failed (fetch, extract, AI), send an error instead of crashing
+    console.error("Analyze failed:", error)
+    res.status(500).json({ error: "Something went wrong. Please try again." })
+  }
 }
 
 
 export default analyzeController
+
+
+
+
+// //PLACEHOLDER DOING
+// //fake structured result (same shape the real AI will return), stringified - active until the real services are ready
+// const placeholderResult = JSON.stringify({
+//     matchScore: 70,
+//     fitLevel: "Good Fit with Gaps",
+//     fitMessage: "You're a strong candidate but missing a few key skills.",
+//     matchedSkills: ["React", "TypeScript"],
+//     missingSkills: [{ skill: "AWS", importance: "critical" }],
+//     suggestions: ["Take an AWS course"],
+//     timeToReady: "2-3 months"
+// })
+
+// //PLACEHOLDER RESPONSE
+// //JSON is what we need to convert the data to in order for it to travel back to the front end
+// res.json({
+//     //the shape of the response matches the expecatations from the frontend ()
+//     result: placeholderResult,
+//     id: '123',
+//     createdAt: new Date().toISOString()
+// })

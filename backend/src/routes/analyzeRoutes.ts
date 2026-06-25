@@ -35,11 +35,13 @@
 //import express in order to create the router
 import express from 'express'
 
+import analyzeController from '../controllers/analyzeController'
+
 //create the router 
 const router = express.Router()
 
-
-
+//when a POST request comes to this route, send it to the analyzeController
+router.post('/', analyzeController)
 
 
 //export the router so app.ts can connect to it 
