@@ -137,6 +137,7 @@ function App() {
   const [isJobModalOpen, setIsJobModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [analysisResponse, setAnalysisResponse] = useState<string>("");
+  const [analysisError, setAnalysisError] = useState("");
   const [resumeUploadMessage, setResumeUploadMessage] = useState("");
   const [historyArray, setHistoryArray] = useState<
     { id: string; jobListing: string; result: string; createdAt: string }[]
@@ -178,6 +179,8 @@ function App() {
 
     setIsLoading(true);
 
+    setAnalysisError("");
+
     try {
       const response = await fetch("http://localhost:3000/api/analyze", {
         method: "POST",
@@ -193,6 +196,10 @@ function App() {
         }),
       });
 
+      if (!response.ok) {
+        throw new Error("Analysis request failed");
+      }
+
       const data = await response.json();
 
       // the analysis comes back from a jsonb column, so data.result is an OBJECT.
@@ -202,6 +209,8 @@ function App() {
         typeof data.result === "string"
           ? data.result
           : JSON.stringify(data.result);
+
+      JSON.parse(resultString);
 
       // store the current result so AnalysisResult shows it
       setAnalysisResponse(resultString);
@@ -218,6 +227,9 @@ function App() {
       ]);
     } catch (error) {
       console.error("Analyze failed:", error);
+      setAnalysisError(
+        "Something went wrong while generating your analysis. Please try again.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -278,9 +290,6 @@ function App() {
             >
               Upload Job Posting
             </Button>
-            <Button onClick={() => setIsHistoryModalOpen(true)}>
-              Analysis History
-            </Button>
           </div>
 
           {resumeUploadMessage && (
@@ -294,7 +303,7 @@ function App() {
           ) : (
             // parse the stringified result into an object before passing it down
             // (or pass null if there's no analysis yet - the component handles the empty state)
-           <AnalysisResult
+            <AnalysisResult
               parsedResponse={(() => {
                 if (!analysisResponse) return null;
                 try {
@@ -304,7 +313,21 @@ function App() {
                   return null;
                 }
               })()}
-/>
+            />
+          )}
+
+          {analysisError && (
+            <p className="mt-4 text-sm font-semibold text-red-700">
+              {analysisError}
+            </p>
+          )}
+
+          {historyArray.length > 0 && (
+            <div className="mt-6">
+              <Button onClick={() => setIsHistoryModalOpen(true)}>
+                Analysis History
+              </Button>
+            </div>
           )}
 
           {/* RESUME STATUS - shows when a resume has been uploaded */}
