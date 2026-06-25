@@ -1,34 +1,64 @@
-/*
+import "dotenv/config";
+import { Request, Response, NextFunction } from "express";
+import { createClient } from "@supabase/supabase-js";
 
-    What is this file for?
-    This is the auth MIDDLEWARE - a checkpoint that runs BEFORE protected routes, 
-    to check if the user is actually logged in / allowed before letting them through.
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    What is middleware?
-    Code that runs in the MIDDLE - between a request arriving and the controller handling it.
-    Like airport security before your gate: it checks the request and either lets it 
-    CONTINUE to the controller, or STOPS it and sends back "not allowed."
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error("Missing Supabase environment variables");
+}
 
-    The flow:
-    request → [auth middleware checks if logged in] → if OK, continue to controller
-                                                    → if NOT, stop + send back an error
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-*/
+//Checks whether the request has a valid Supabase login token.
+export async function authMiddleware(
+    req: Request, 
+    res: Response, 
+    next: NextFunction
+) {
+    //The frontend should send the Supabase access token in this header:
+    //Authorization: Bearer <token>
+    const authHeader = req.headers.authorization;
 
-/*
+    //If there is no Authorization header, the backend does not know who this is.
+    if (!authHeader) {
+        return res.status(401).json({
+            error: "Missing authentication header",
+        })
+    }
 
-    TODO
-    build out the auth check.
+    // The header should look like: "Bearer abc123".
+    if (!authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({
+            error: "Invalid authorization header",
+        });
+    }
 
-    This file still needs to:
-    1. get whatever proves the user is logged in (a token / session from the request)
-    2. check if it's valid (using Supabase auth)
-    3. if valid → let the request continue on to the controller
-       if not valid → stop it and send back an "unauthorized" response
+    //Remove "Bearer" so we are left with only the token.
+    const token = authHeader.replace("Bearer ", "").trim();
 
-    Coordinate with the team on:
-    - how auth is tracked (Supabase session? a token? - has to match how authController logs people in)
-    - which routes actually need this protection (analyze? history? - the logged-in-only ones)
-    - what to send back when someone isn't authorized
 
-*/
+    if (!token) {
+        return res.status(401).json({
+            error: "Missing authentication token",
+        });
+    }
+
+    //Ask Supabase Auth if this token belongs to a real long-in user.
+    const { data, error } = await supabase.auth.getUser(token);
+
+    //If Supabase rejects the token, stop the request.
+    if (error || !data.user) {
+        return res.status(401).json({
+            error: "Unauthorized",
+        });
+    }
+
+    //Save the verified user where the controller can access it later.
+    res.locals.user = data.user;
+
+    next();
+}
+
+
