@@ -89,6 +89,7 @@ const openai = new OpenAI({
 
 //STEP ONE - create a function that will handle the AI call - use the client/connection to 'talk to' AI
 const getAnalysis = async (resumeText: string, jobText: string) => {
+    console.log("=== PROMPT BEING SENT ===", prompt) 
     //use the client to connect to openai passing it data, instructions and storing the response
     const response = await openai.responses.create({
         //what model you want to run the request on 

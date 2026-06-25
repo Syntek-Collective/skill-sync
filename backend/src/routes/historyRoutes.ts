@@ -35,12 +35,13 @@
 //import express in order to create the router
 import express from 'express'
 import getHistory from '../controllers/historyController'
+import { authMiddleware } from '../middleware/authMiddleware';
 
 //create the router 
 const historyRouter = express.Router()
 
 // Define the route: We use GET because we are retrieving data
-historyRouter.get('/', getHistory);
+historyRouter.get('/', authMiddleware, getHistory);
 
 
 

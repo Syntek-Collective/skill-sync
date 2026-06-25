@@ -164,7 +164,7 @@ function App() {
     checkSession();
   }, []);
 
-  // ===== REAL ANALYZE FUNCTION - calls our backend =====
+// ===== REAL ANALYZE FUNCTION - calls our backend =====
   // receives the job data (incl. jobPostingId) from the JobPostingModal
   const handleAnalyze = async (jobData: {
     title: string;
@@ -178,13 +178,20 @@ function App() {
     }
 
     setIsLoading(true);
-
     setAnalysisError("");
 
     try {
+      // get the current session so we can send the auth token the backend expects
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       const response = await fetch("http://localhost:3000/api/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
         // send everything the backend needs: the file path, the job text,
         // and the ids needed to save the analysis row
         body: JSON.stringify({
