@@ -294,11 +294,17 @@ function App() {
           ) : (
             // parse the stringified result into an object before passing it down
             // (or pass null if there's no analysis yet - the component handles the empty state)
-            <AnalysisResult
-              parsedResponse={
-                analysisResponse ? JSON.parse(analysisResponse) : null
-              }
-            />
+           <AnalysisResult
+              parsedResponse={(() => {
+                if (!analysisResponse) return null;
+                try {
+                  return JSON.parse(analysisResponse);
+                } catch {
+                  console.error("Could not parse analysis:", analysisResponse);
+                  return null;
+                }
+              })()}
+/>
           )}
 
           {/* RESUME STATUS - shows when a resume has been uploaded */}

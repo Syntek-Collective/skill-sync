@@ -23,11 +23,11 @@ import express from 'express'
 import analyzeController from '../controllers/analyzeController'
 
 //create the router 
-const router = express.Router()
+const analyzeRouter = express.Router()
 
 //when a POST request comes to this route, send it to the analyzeController
-router.post('/', analyzeController)
+analyzeRouter.post('/', analyzeController)
 
 
 //export the router so app.ts can connect to it 
-export default router 
+export default analyzeRouter 
