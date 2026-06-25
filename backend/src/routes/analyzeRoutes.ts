@@ -15,32 +15,19 @@
 
 */
 
-/*
-
-    TODO
-    wire up the analyze route(s) once the analyzeController exists.
-
-    This file still needs to:
-    1. import the controller function(s) this route should point to
-    2. define the route(s) - decide the method (GET/POST) and path
-        (this feature SENDS data to be analyzed - consider which method fits)
-    3. make sure the route points to the right controller function
-
-    Coordinate with whoever owns the analyzeController on the function name(s)
-    so the import matches.
-
-*/
 
 
 //import express in order to create the router
 import express from 'express'
 
+import analyzeController from '../controllers/analyzeController'
+
 //create the router 
-const router = express.Router()
+const analyzeRouter = express.Router()
 
-
-
+//when a POST request comes to this route, send it to the analyzeController
+analyzeRouter.post('/', analyzeController)
 
 
 //export the router so app.ts can connect to it 
-export default router 
+export default analyzeRouter 

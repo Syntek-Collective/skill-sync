@@ -2,13 +2,18 @@ import React, { useState } from "react";
 
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
-import {supabase} from "../supabaseClient";
+import { supabase } from "../supabaseClient";
 
 // the shape of what this modal needs from App.tsx
 interface JobPostingModalProps {
   isOpen: boolean; // is the modal open?
   onClose: () => void; // how to close it
-  onAnalyze: (jobData: { title: string; posting: string }) => void; // send BOTH the title + posting up to App.tsx
+  // send the title, posting, AND the new job posting's id up to App.tsx
+  onAnalyze: (jobData: {
+    title: string;
+    posting: string;
+    jobPostingId: string;
+  }) => void;
 }
 
 const JobPostingModal: React.FC<JobPostingModalProps> = ({
@@ -24,36 +29,45 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   // runs when the user clicks "Analyze"
-  // named handleSubmit (NOT handleAnalyze) because this modal's job is to
-  // VALIDATE + HAND OFF - the ACTUAL analyzing happens in App.tsx's handleAnalyze
-const handleSubmit = async () => {
-  if (!jobTitle.trim() || !jobPosting.trim()) {
-    setError("Both a job title and a job posting are required.");
-    return;
-  }
-
-  try {
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData.user) {
-      throw new Error("You must be logged in to save a job posting");
+  // saves the job posting, grabs its id, then hands everything up to App.tsx
+  const handleSubmit = async () => {
+    if (!jobTitle.trim() || !jobPosting.trim()) {
+      setError("Both a job title and a job posting are required.");
+      return;
     }
 
-    // Insert only the columns that actually exist in your dashboard screenshot
-    const { error: insertError } = await supabase.from("job_postings").insert({
-      user_id: userData.user.id,
-      job_title: jobTitle,
-      extracted_text: jobPosting, // Saves the full job description
-    });
+    try {
+      const { data: userData, error: userError } =
+        await supabase.auth.getUser();
+      if (userError || !userData.user) {
+        throw new Error("You must be logged in to save a job posting");
+      }
 
-    if (insertError) throw insertError;
+      // Save the job posting row.
+      // .select().single() returns the new row so we can grab its id.
+      const jobInsertResponse = await supabase
+        .from("job_postings")
+        .insert({
+          user_id: userData.user.id,
+          job_title: jobTitle,
+          extracted_text: jobPosting, // saves the full job description
+        })
+        .select()
+        .single();
 
-    onAnalyze({ title: jobTitle, posting: jobPosting });
-    onClose();
-  } catch (err: any) {
-    console.error("Error saving job posting:", err);
-    setError("Failed to save job posting. Please check the console.");
-  }
-};
+      if (jobInsertResponse.error) throw jobInsertResponse.error;
+
+      // grab the new job posting's id so the analyze flow can reference it
+      const jobPostingId = jobInsertResponse.data.id;
+
+      // hand the title, posting, and id up to App.tsx
+      onAnalyze({ title: jobTitle, posting: jobPosting, jobPostingId });
+      onClose();
+    } catch (err) {
+      console.error("Error saving job posting:", err);
+      setError("Failed to save job posting. Please check the console.");
+    }
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add New Job Posting">
@@ -64,8 +78,8 @@ const handleSubmit = async () => {
         </label>
         <input
           type="text"
-          value={jobTitle} // show the current title
-          onChange={(e) => setJobTitle(e.target.value)} // update state as the user types
+          value={jobTitle}
+          onChange={(e) => setJobTitle(e.target.value)}
           className="w-full p-2 border rounded"
           placeholder="e.g. Senior Software Engineer"
         />
@@ -77,9 +91,9 @@ const handleSubmit = async () => {
           Job Posting
         </label>
         <textarea
-          value={jobPosting} // show the current posting
-          onChange={(e) => setJobPosting(e.target.value)} // update state as the user types
-          className="w-full p-2 border rounded h-40" // h-40 gives room to paste a description
+          value={jobPosting}
+          onChange={(e) => setJobPosting(e.target.value)}
+          className="w-full p-2 border rounded h-40"
           placeholder="Paste the full job description here..."
         />
       </div>
@@ -89,10 +103,7 @@ const handleSubmit = async () => {
 
       {/* ===== BUTTONS ===== */}
       <div className="flex justify-end gap-2">
-        {/* cancel - just close, no analysis */}
         <Button onClick={onClose}>Cancel</Button>
-
-        {/* analyze - DISABLED until BOTH fields are filled (can't click otherwise) */}
         <Button onClick={handleSubmit} disabled={!jobTitle || !jobPosting}>
           Analyze
         </Button>

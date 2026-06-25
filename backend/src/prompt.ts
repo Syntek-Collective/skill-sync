@@ -30,3 +30,8 @@
     - whether to give the AI examples (few-shot) to make its answers more consistent
 
 */
+
+// prompt.ts - the AI instructions (the team will flesh this out)
+
+
+export const prompt = `You are a skill-gap analyzer. Compare a candidate's resume to a job posting and identify the skill gap.`

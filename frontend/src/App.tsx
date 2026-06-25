@@ -128,13 +128,15 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [userName, setUserName] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [resumeFilePath, setResumeFilePath] = useState<string | null>(null);
+  const [resumeId, setResumeId] = useState<string | null>(null);
   const [isJobModalOpen, setIsJobModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-  const [analysisResponse, setAnalysisResponse] = useState("");
+  const [analysisResponse, setAnalysisResponse] = useState<string>("");
   const [resumeUploadMessage, setResumeUploadMessage] = useState("");
   const [historyArray, setHistoryArray] = useState<
     { id: string; jobListing: string; result: string; createdAt: string }[]
@@ -154,106 +156,91 @@ function App() {
         const username = profileResponse.data?.username;
         setIsLoggedIn(true);
         setUserName(username || user.email || "");
+        // store the logged-in user's id - the analyze request needs it
+        setUserId(user.id);
       }
     };
     checkSession();
   }, []);
 
-  // ===== PLACEHOLDER ANALYZE FUNCTION (until the backend is built) =====
-  const handleAnalyzePlaceholder = (jobData: {
+  // ===== REAL ANALYZE FUNCTION - calls our backend =====
+  // receives the job data (incl. jobPostingId) from the JobPostingModal
+  const handleAnalyze = async (jobData: {
     title: string;
     posting: string;
+    jobPostingId: string;
   }) => {
+    // guard: we need a resume uploaded (filePath + id) and a logged-in user
+    if (!resumeFilePath || !resumeId || !userId) {
+      console.error("Missing resume, resume id, or user id");
+      return;
+    }
+
     setIsLoading(true);
-    // fakes what the backend will eventually do, so we can build/test the frontend
-    const fakeResult = JSON.stringify({
-      matchScore: 70,
-      fitLevel: "Good Fit with Gaps",
-      fitMessage:
-        "You're a strong candidate but missing a few key skills you can build.",
-      matchedSkills: ["React", "TypeScript", "Node.js"],
-      missingSkills: [
-        { skill: "AWS", importance: "critical" },
-        { skill: "Docker", importance: "nice-to-have" },
-      ],
-      suggestions: [
-        "Take an AWS certification course",
-        "Build a project using Docker",
-      ],
-      timeToReady: "2-3 months of focused learning",
-    });
 
-    const fakeObj = {
-      id: "6767",
-      result: fakeResult,
-      createdAt: new Date().toISOString(),
-    };
+    try {
+      const response = await fetch("http://localhost:3000/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // send everything the backend needs: the file path, the job text,
+        // and the ids needed to save the analysis row
+        body: JSON.stringify({
+          resume: resumeFilePath,
+          jobPosting: jobData.posting,
+          userId,
+          resumeId,
+          jobPostingId: jobData.jobPostingId,
+        }),
+      });
 
-    // store the current result so AnalysisResult shows it
-    setAnalysisResponse(fakeObj.result);
+      const data = await response.json();
 
-    // add to history - use the title as the readable label
-    setHistoryArray([
-      ...historyArray,
-      {
-        id: fakeObj.id,
-        jobListing: jobData.title,
-        result: fakeObj.result,
-        createdAt: fakeObj.createdAt,
-      },
-    ]);
+      // the analysis comes back from a jsonb column, so data.result is an OBJECT.
+      // we stringify it for our state/history (which store it as a string),
+      // and AnalysisResult parses it back when displaying.
+      const resultString =
+        typeof data.result === "string"
+          ? data.result
+          : JSON.stringify(data.result);
 
-    setIsLoading(false);
+      // store the current result so AnalysisResult shows it
+      setAnalysisResponse(resultString);
+
+      // add this analysis to history, keeping past entries
+      setHistoryArray([
+        ...historyArray,
+        {
+          id: String(data.id),
+          jobListing: jobData.title,
+          result: resultString,
+          createdAt: String(data.createdAt),
+        },
+      ]);
+    } catch (error) {
+      console.error("Analyze failed:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
-
-  // ===== REAL ANALYZE FUNCTION (commented out until the backend exists) =====
-  // this will replace the placeholder - it actually calls our backend
-  // // data must be converted to JSON to travel over the internet
-  // const handleAnalyze = async(jobQuery: string) => {
-  //   //set the loading state to true while we are waiting for the response from the backend
-  //   setIsLoading(true)
-
-  //   const response = await fetch('http://localhost:3000/api/analyze', {
-  //     //type of request we are making to the back end
-  //     method: 'POST',
-  //     //info about request: describes the data type of the in the request body (JSON)
-  //     headers: { 'Content-Type': 'application/json' },
-  //     //actual data sent in request - converts our JS object (resume + job) into a JSON string to send
-  //     body: JSON.stringify({ resume: resumeFilePath, jobPosting: jobQuery })
-  //   })
-
-  //   //convert the JSON response to a JavaScript
-  //   const data = await response.json()
-
-  //   //store the result so AnalysisResult shows it on screen
-  //   setAnalysisResponse(data.result)
-
-  //   // add this analysis to history, keeping past entries
-  //   setHistoryArray([
-  //     ...historyArray,
-  //     {
-  //       id: String(data.id),               // ensure it's a string (matches our type)
-  //       jobListing: jobQuery,
-  //       result: data.result,
-  //       createdAt: String(data.createdAt)  // ensure it's a string (matches our type)
-  //     }
-  //   ])
-
-  //   //once the information is received we are no longer loading
-  //   setIsLoading(false)
-  // }
 
   // ===== AUTH SUCCESS - called when login/signup succeeds =====
   const handleAuthSuccess = (user: string) => {
     setIsLoggedIn(true);
     setUserName(user);
     setIsAuthModalOpen(false);
+    // refresh the userId after auth
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setUserId(data.user.id);
+    });
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setIsLoggedIn(false);
     setUserName("");
+    setUserId(null);
+    setResumeFilePath(null);
+    setResumeId(null);
   };
 
   return (
@@ -285,7 +272,10 @@ function App() {
             <Button onClick={() => setIsResumeModalOpen(true)}>
               Upload Resume
             </Button>
-            <Button onClick={() => setIsJobModalOpen(true)}>
+            <Button
+              onClick={() => setIsJobModalOpen(true)}
+              disabled={!resumeFilePath}
+            >
               Upload Job Posting
             </Button>
             <Button onClick={() => setIsHistoryModalOpen(true)}>
@@ -304,23 +294,17 @@ function App() {
           ) : (
             // parse the stringified result into an object before passing it down
             // (or pass null if there's no analysis yet - the component handles the empty state)
-            <AnalysisResult
-              parsedResponse={
-                analysisResponse ? JSON.parse(analysisResponse) : null
-              }
-            />
-          )}
-
-          {historyArray.length > 0 && (
-            <div className="mt-10">
-              <Button
-                onClick={() => {
-                  setIsHistoryModalOpen(true);
-                }}
-              >
-                Analysis History
-              </Button>
-            </div>
+           <AnalysisResult
+              parsedResponse={(() => {
+                if (!analysisResponse) return null;
+                try {
+                  return JSON.parse(analysisResponse);
+                } catch {
+                  console.error("Could not parse analysis:", analysisResponse);
+                  return null;
+                }
+              })()}
+/>
           )}
 
           {/* RESUME STATUS - shows when a resume has been uploaded */}
@@ -333,8 +317,9 @@ function App() {
             <ResumeModal
               isOpen={isResumeModalOpen}
               onClose={() => setIsResumeModalOpen(false)}
-              onSave={(filePath) => {
+              onSave={(filePath, newResumeId) => {
                 setResumeFilePath(filePath);
+                setResumeId(newResumeId);
                 setResumeUploadMessage("Resume uploaded successfully.");
               }}
             />
@@ -344,7 +329,7 @@ function App() {
             <JobPostingModal
               isOpen={isJobModalOpen}
               onClose={() => setIsJobModalOpen(false)}
-              onAnalyze={handleAnalyzePlaceholder}
+              onAnalyze={handleAnalyze}
             />
           )}
 

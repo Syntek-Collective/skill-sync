@@ -37,14 +37,14 @@ import express from 'express'
 import getHistory from '../controllers/historyController'
 
 //create the router 
-const router = express.Router()
+const historyRouter = express.Router()
 
 // Define the route: We use GET because we are retrieving data
-router.get('/', getHistory);
+historyRouter.get('/', getHistory);
 
 
 
 
 
 //export the router so app.ts can connect to it 
-export default router
+export default historyRouter

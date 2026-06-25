@@ -7,7 +7,8 @@ import { supabase } from "../supabaseClient";
 interface ResumeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (filePath: string) => void;
+  // now passes BOTH the filePath AND the new resume's id up to App.tsx
+  onSave: (filePath: string, resumeId: string) => void;
 }
 
 const ResumeModal: React.FC<ResumeModalProps> = ({
@@ -55,20 +56,27 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
       if (uploadError) throw uploadError;
 
       //Save a database row that points to the uploaded resume file.
-      //The actual file lives in Storage; this row lets the app find it later
-      const resumeInsertResponse = await supabase.from("resumes").insert({
-        user_id: userId,
-        title: selectedFile.name,
-        file_name: selectedFile.name,
-        file_path: filePath,
-        extracted_text: "",
-      });
+      //The actual file lives in Storage; this row lets the app find it later.
+      //.select().single() returns the new row so we can grab its id.
+      const resumeInsertResponse = await supabase
+        .from("resumes")
+        .insert({
+          user_id: userId,
+          title: selectedFile.name,
+          file_name: selectedFile.name,
+          file_path: filePath,
+          extracted_text: "",
+        })
+        .select()
+        .single();
 
-      const insertError = resumeInsertResponse.error;
-      if (insertError) throw insertError;
+      if (resumeInsertResponse.error) throw resumeInsertResponse.error;
 
-      // Success: Trigger onSave with the path, then close
-      onSave(filePath);
+      // grab the new resume row's id so the analyze flow can reference it later
+      const resumeId = resumeInsertResponse.data.id;
+
+      // Success: pass the path AND the resume id up, then close
+      onSave(filePath, resumeId);
       onClose();
     } catch (error) {
       console.error("Error uploading file:", error);

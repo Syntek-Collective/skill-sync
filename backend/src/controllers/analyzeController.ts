@@ -35,3 +35,53 @@
     - whether the result also gets saved to the database here
 
 */
+
+import { Request, Response } from 'express'
+
+import getAnalysis from '../services/openaiService'
+import { fetchResumeFile, saveAnalysis } from '../services/supabaseService'
+import { textFromPdf } from '../services/pdfService'
+import { prompt } from '../prompt'
+
+
+// controllers are doers: receive data, do the work, send a response
+const analyzeController = async (req: Request, res: Response) => {
+  // RECEIVE - get everything the frontend sends
+  // (frontend now also sends the IDs needed for saving)
+  const { resume, jobPosting, userId, resumeId, jobPostingId } = req.body
+  // resume is a filePath string
+
+  try {
+    // FETCH - get the resume PDF from storage using the filePath (returns a Buffer)
+    const resumePDF = await fetchResumeFile(resume)
+
+    // EXTRACT - turn the PDF Buffer into text
+    const resumeText = await textFromPdf(resumePDF)
+
+    // ANALYZE - send the text + job posting to the AI, get the analysis
+    const analysis = await getAnalysis(resumeText, jobPosting)
+
+    // SAVE - store the analysis in the database (so it shows in history)
+    const saved = await saveAnalysis({
+      userId,
+      resumeId,
+      jobPostingId,
+      prompt,
+      result: analysis
+    })
+
+    // RESPOND - send the result back (real id + createdAt from the saved row)
+    res.json({
+      result: analysis,
+      id: saved.id,
+      createdAt: saved.created_at
+    })
+  } catch (error) {
+    // if any step failed (fetch, extract, AI, save), send an error instead of crashing
+    console.error("Analyze failed:", error)
+    res.status(500).json({ error: "Something went wrong. Please try again." })
+  }
+}
+
+
+export default analyzeController

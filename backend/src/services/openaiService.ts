@@ -1,102 +1,71 @@
 /*
 
-    What is this service for?
-    Talks to the AI (OpenAI). This is the specialist for sending text to the AI and 
-    getting a response back.
+    OPENAI SERVICE
+
+    What this file does:
+    The specialist that talks to the AI. Its ONE job: take the resume text + job posting,
+    send them to OpenAI (with our prompt), and return the AI's response.
+
+    (for the shared concepts - dotenv, the filePath→text flow - see services/README)
+
+    NOTE: we use the RESPONSES API (openai.responses.create) - OpenAI's newer, recommended
+    API. (the older one is Chat Completions / openai.chat.completions.create, which uses a
+    messages array instead. we picked Responses - just make sure the team is consistent.)
 
 
-    DOTENV
-    Plain Node (the backend) does NOT read .env files automatically (Vite does that 
-    for the frontend, but Node doesn't).
-    So we use dotenv to LOAD the .env file - this makes our OPENAI_API_KEY available 
-    to the code via process.env.OPENAI_API_KEY.
-        import 'dotenv/config'   ← loads the .env so the key is usable
+    THIS FILE'S PIECES:
+
+    1. SETUP
+       - load the .env (so OPENAI_API_KEY is available)
+       - import the OpenAI library + create the client (our connection, using the key)
+       - import the prompt from prompt.ts (the AI's instructions)
+
+    2. getAnalysis(resumeText, jobText)
+       Takes BOTH the resume text and the job posting (the AI needs both to compare them).
+       Note: it gets the resume as TEXT - the controller already fetched + extracted it
+       before calling this (see the README for that flow).
+
+       It does 3 things:
+         a. SEND    - call openai.responses.create with:
+                        model:        'gpt-4o-mini'  (which AI brain)
+                        instructions: the prompt      (HOW to analyze - from prompt.ts)
+                        input:        the resume + job (WHAT to analyze - the data)
+                      (async/await because it's a network request - it takes time)
+         b. EXTRACT - get the answer with response.output_text
+                      (the Responses API gives a handy output_text helper - no digging
+                       through nested objects like the old Chat Completions API needed)
+         c. RETURN  - hand back that answer (a JSON string of the structured analysis -
+                      the frontend parses it later when displaying)
 
 
-    IMPORTING OPENAI
-    This brings in the OpenAI library/toolkit (the package we installed) - all the 
-    code that knows HOW to talk to OpenAI's AI.
-        import OpenAI from 'openai'
+    THE RESPONSES API CALL (how its pieces map):
+        instructions  → the PROMPT (the system-level guidance / how to behave)
+        input         → the resume + job (the actual data to analyze)
+        response.output_text → the AI's answer (clean, no nested digging)
 
-
-    THE CLIENT
-    The client is our personal, authenticated CONNECTION to OpenAI.
-    We create it using our API key, which is how OpenAI identifies us (and bills our 
-    account). The client is like a phone - it's the connection, but it doesn't DO 
-    anything on its own until we use it to make a call.
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-        - openai          = our connection (the client)
-        - apiKey          = our "login" - proves it's us
-
-
-    THE FUNCTION (getAnalysis)
-    The client is just the connection - this FUNCTION is what actually USES it to talk 
-    to the AI. It does 3 things:
-        1. SEND    - send the text to the AI
-        2. EXTRACT - dig the actual answer out of the (messy, nested) response
-        3. RETURN  - hand back the clean answer
-    It's async because talking to the AI takes time (it's a network request to 
-    OpenAI's servers), so we await it.
-
-
-    THE AI CALL: openai.chat.completions.create({ ... })
-    This is the actual "send my message, get a reply" line. In plain English:
-    "Hey OpenAI, here's my message - reply to it."
-    It takes two pieces of info:
-
-        model: 'gpt-4o-mini'
-        → WHICH AI brain to use. OpenAI has different models (different abilities/costs).
-            gpt-4o-mini is the one our project uses.
-
-        messages: [ { role: 'user', content: text } ]
-        → our actual MESSAGE to the AI.
-            - it's an ARRAY [ ] because a conversation can have multiple messages
-            - role: 'user'    = WHO is talking ('user' = us)
-                                (other roles: 'system' = instructions, 'assistant' = the AI)
-            - content: text   = WHAT we're saying (the actual text)
-
-    So the whole call = "use this AI brain (model) + here's my message (messages) → reply."
-
-
-    AWAIT (why we need it)
-    The AI call is a network request to OpenAI's servers - it takes time.
-    await = "wait for the reply before moving on."
-    (this is why the function must be async)
-
-
-    THE RESPONSE
-    The AI's reply comes back NESTED inside a big response object (lots of extra 
-    metadata around the actual answer). The real answer is buried at:
-        response.choices[0].message.content
-    So we dig in, grab just that, and return it (clean) - so whoever calls this 
-    function gets the answer, not the messy response object.
-
-
-    THE FLOW (start to finish):
-        text comes in
-        → send it to the AI (openai.chat.completions.create)
-        → wait for the reply (await)
-        → pull the answer out of the response (response.choices[0].message.content)
-        → return the clean answer
-
+    (in the OLDER Chat Completions API this was: a 'messages' array with system + user
+     roles, and the answer was buried at response.choices[0].message.content. the
+     Responses API is simpler: instructions + input + output_text.)
 
 */
 
 /*
 
     TODO
-    build out the AI call.
-
-    This file will need to:
-    1. take in the resume text + job posting
-    2. build the message to send (using the prompt from prompt.ts)
-    3. send it to the OpenAI API (gpt-4o-mini)
-    4. return the AI's response (the analysis)
+    build out getAnalysis:
+    1. take in resumeText + jobText (two params)
+    2. send to the AI with openai.responses.create:
+         - instructions: the prompt (from prompt.ts)
+         - input: the resume + job combined
+    3. get the answer with response.output_text
+    4. return it
 
     Coordinate with the team on:
-    - the exact prompt (lives in prompt.ts - this service USES it)
-    - what shape the AI should return (so the controller can send it back to the frontend)
-    - the model + any settings (gpt-4o-mini, etc.)
+    - that we're all using the RESPONSES API (not Chat Completions) - be consistent
+    - the prompt (lives in prompt.ts - this service USES it, the team writes it)
+    - the structured output shape (must match the frontend + history + evals contract)
+    - the model + any settings (gpt-4o-mini; for reliable JSON, the Responses API uses
+      text.format for structured outputs - look into it when tightening the JSON)
 
 */
 
@@ -108,6 +77,7 @@ import 'dotenv/config'
 
 //brings in all the code for talking to OpenAI's AI - specifically creating a client
 import OpenAI from 'openai'
+import { prompt } from '../prompt'
 
 
 
@@ -118,6 +88,20 @@ const openai = new OpenAI({
 })
 
 //STEP ONE - create a function that will handle the AI call - use the client/connection to 'talk to' AI
-const getAnalysis = async (jobText: string) => {
-
+const getAnalysis = async (resumeText: string, jobText: string) => {
+    //use the client to connect to openai passing it data, instructions and storing the response
+    const response = await openai.responses.create({
+        //what model you want to run the request on 
+        model: 'gpt-4o-mini',
+        //additional instructions we want to give openai with our data - our prompt file
+        instructions: prompt,
+        //give openai the relevant data
+        input: `Resume: ${resumeText}, Job posting: ${jobText}`
+    })
+    
+    //return the JSON object response from openAI - this formatting is from the docs 
+    return response.output_text
 }
+
+
+export default getAnalysis 
