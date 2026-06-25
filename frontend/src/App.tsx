@@ -160,10 +160,12 @@ function App() {
   }, []);
 
   // ===== PLACEHOLDER ANALYZE FUNCTION (until the backend is built) =====
-  const handleAnalyzePlaceholder = (jobData: { title: string; posting: string }) => {
+  const handleAnalyzePlaceholder = (jobData: {
+    title: string;
+    posting: string;
+  }) => {
     setIsLoading(true);
-
-    // make FAKE structured data (the shape the real AI/backend will return), STRINGIFIED
+    // fakes what the backend will eventually do, so we can build/test the frontend
     const fakeResult = JSON.stringify({
       matchScore: 70,
       fitLevel: "Good Fit with Gaps",
@@ -195,7 +197,7 @@ function App() {
       ...historyArray,
       {
         id: fakeObj.id,
-        jobListing: jobData.title,   // the job title (readable label for history)
+        jobListing: jobData.title,
         result: fakeObj.result,
         createdAt: fakeObj.createdAt,
       },
@@ -323,9 +325,7 @@ function App() {
 
           {/* RESUME STATUS - shows when a resume has been uploaded */}
           {resumeFilePath && (
-            <p className="mt-4 text-sm text-green-700">
-              Resume uploaded ✓
-            </p>
+            <p className="mt-4 text-sm text-green-700">Resume uploaded ✓</p>
           )}
 
           {/* Modals */}

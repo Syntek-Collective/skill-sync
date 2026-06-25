@@ -1,28 +1,171 @@
-/*
+// Fake Supabase functions we control in the tests.
+const mockDownload = jest.fn();
+const mockInsert = jest.fn();
+const mockSingle = jest.fn();
+const mockSelect = jest.fn();
+const mockEq = jest.fn();
+const mockOrder = jest.fn();
 
-    What is this file for?
-    Tests for the supabaseService - checks that the database/storage helpers work.
+// Replace the real Supabase client with a fake one.
+jest.mock("@supabase/supabase-js", () => ({
+  createClient: jest.fn(() => ({
+    storage: {
+      from: jest.fn(() => ({
+        download: mockDownload,
+      })),
+    },
 
-    What does it test?
-    That the service correctly fetches files from storage and reads/writes data.
+    from: jest.fn(() => ({
+      insert: mockInsert,
+      select: mockSelect,
+    })),
+  })),
+}));
 
-    What to verify:
-    - fetching a file by filePath returns the file
-    - saving/reading data works
-    - it handles failures (file not found, db error)
+// Fake env vars so supabaseService.ts can load.
+process.env.SUPABASE_URL = "fake-url";
+process.env.SUPABASE_SERVICE_ROLE_KEY = "fake-key";
 
-    (see services/README for how services work in general)
+// Import the real functions we are testing.
+import {
+  fetchResumeFile,
+  saveJobPosting,
+  saveAnalysis,
+  getAnalysesForUser,
+} from "./supabaseService";
 
-*/
+describe("fetchResumeFile", () => {
+  it("downloads a resume file and returns it as a Buffer", async () => {
+    const fakeFile = new Uint8Array([1, 2, 3]).buffer;
 
-/*
+    mockDownload.mockResolvedValue({
+      data: {
+        arrayBuffer: async () => fakeFile,
+      },
+      error: null,
+    });
 
-    TODO
-    write the tests once supabaseService is built.
+    const result = await fetchResumeFile("my-resume.pdf");
 
-    Coordinate with the team on:
-    - test framework (Jest or Vitest?)
-    - how to MOCK Supabase (so tests don't hit the real database)
-    - which functions this service actually has (depends on what the team builds)
+    expect(Buffer.isBuffer(result)).toBe(true);
+  });
+});
 
-*/
+describe("saveJobPosting", () => {
+  it("saves a job posting and returns the saved row", async () => {
+    const fakeSavedJobPosting = {
+      id: "job-123",
+      extracted_text: "We need a React developer",
+    };
+
+    mockInsert.mockReturnValue({
+      select: () => ({
+        single: mockSingle,
+      }),
+    });
+
+    mockSingle.mockResolvedValue({
+      data: fakeSavedJobPosting,
+      error: null,
+    });
+
+    const result = await saveJobPosting({
+      userId: "user-123",
+      jobTitle: "Frontend Developer",
+      companyName: "Acme",
+      fileName: "job-posting.txt",
+      filePath: "jobs/job-posting.txt",
+      extractedText: "We need a React developer",
+    });
+
+    expect(mockInsert).toHaveBeenCalledWith({
+      user_id: "user-123",
+      job_title: "Frontend Developer",
+      company_name: "Acme",
+      file_name: "job-posting.txt",
+      file_path: "jobs/job-posting.txt",
+      extracted_text: "We need a React developer",
+    });
+
+    expect(result).toBe(fakeSavedJobPosting);
+  });
+});
+
+describe("saveAnalysis", () => {
+  it("saves an analysis and returns the saved row", async () => {
+    const fakeSavedAnalysis = {
+      id: "analysis-123",
+      summary: "Good match",
+    };
+
+    mockInsert.mockReturnValue({
+      select: () => ({
+        single: mockSingle,
+      }),
+    });
+
+    mockSingle.mockResolvedValue({
+      data: fakeSavedAnalysis,
+      error: null,
+    });
+
+    const result = await saveAnalysis({
+      userId: "user-123",
+      resumeId: "resume-123",
+      jobPostingId: "job-123",
+      prompt: "Compare this resume to this job posting",
+      matchedSkills: ["React", "TypeScript"],
+      skillGap: ["Testing"],
+      summary: "Good match",
+    });
+
+    expect(mockInsert).toHaveBeenCalledWith({
+      user_id: "user-123",
+      resume_id: "resume-123",
+      job_posting_id: "job-123",
+      prompt: "Compare this resume to this job posting",
+      matched_skills: ["React", "TypeScript"],
+      skill_gap: ["Testing"],
+      summary: "Good match",
+    });
+
+    expect(result).toBe(fakeSavedAnalysis);
+  });
+});
+
+describe("getAnalysesforUser", () => {
+  it("fetches saved analyses for one user", async () => {
+    const fakeAnalyses = [
+      {
+        id: "analysis-123",
+        user_id: "user-123",
+        summary: "Good match",
+      },
+    ];
+
+    // Fake the Supabase chain:
+    // select().eq().order()
+    mockSelect.mockReturnValue({
+      eq: mockEq,
+    });
+
+    mockEq.mockReturnValue({
+      order: mockOrder,
+    });
+
+    mockOrder.mockResolvedValue({
+      data: fakeAnalyses,
+      error: null,
+    });
+
+    const result = await getAnalysesForUser("user-123");
+
+    expect(mockSelect).toHaveBeenCalledWith("*");
+    expect(mockEq).toHaveBeenCalledWith("user_id", "user-123");
+    expect(mockOrder).toHaveBeenCalledWith("created_at", {
+      ascending: false,
+    });
+
+    expect(result).toBe(fakeAnalyses);
+  });
+});
