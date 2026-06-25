@@ -35,3 +35,45 @@
     - whether the result also gets saved to the database here
 
 */
+
+
+import { Request, Response } from 'express'
+
+import getAnalysis from '../services/openaiService'
+
+// import { fetchResume } from '../services/supabaseService'      //
+// import { extractText } from '../services/pddfService'          //
+
+
+
+//controllers are doers with the general process of receiving data, performing actions and sending a response
+const analyzeController = async (req: Request, res: Response) => {
+    //RECEIVE 
+    //access the data needed to do anything related to the analyzation process (destructure resume and job listing)
+    //frontend sends data in the request body (req.body) 
+    const { resume, jobPosting } = req.body       //resume is a file path string
+
+
+    //PLACEHOLDER DOING
+    //fake structured result (same shape the real AI will return), stringified - active until the real services are ready
+    const placeholderResult = JSON.stringify({
+        matchScore: 70,
+        fitLevel: "Good Fit with Gaps",
+        fitMessage: "You're a strong candidate but missing a few key skills.",
+        matchedSkills: ["React", "TypeScript"],
+        missingSkills: [{ skill: "AWS", importance: "critical" }],
+        suggestions: ["Take an AWS course"],
+        timeToReady: "2-3 months"
+    })
+
+    // //REAL DOING
+    // //use the file path from req.body and a function passed in from the supabase service file to get the resume PDF
+    // const resumePDF = await fetchResume(resume)
+    // //use the resume PDF document to convert the document to text
+    // const resumeText = await extractText(resumePDF)
+
+
+    //RESPOND
+    
+
+}
