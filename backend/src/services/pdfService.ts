@@ -1,30 +1,18 @@
-/*
+import { PDFParse } from "pdf-parse"
 
-    What is this service for?
-    Extracts the TEXT out of a PDF file. This is the specialist for turning a resume 
-    PDF into plain text the AI can read.
+//Accepts the raw PDF file data and returns the extracted text
 
-    What does it do?
-    A controller hands it a PDF (the resume file), and it returns the text inside.
-    That's its one job: PDF → text.
+export async function textFromPdf(fileBuffer: Buffer): Promise<string> {
+    //Create a PDF parser using the PDF file data.
+    const parser = new PDFParse({ data: fileBuffer });
 
-    (see services/README for how services work in general)
+    //Ask the parser to read the PDF and extract its text.
+    const result = await parser.getText();
+    
+    //return only the text, with extra whitespace removed from the ends.
+    return result.text.trim();
+}
 
-*/
 
-/*
 
-    TODO
-    build out the PDF text extraction.
 
-    This file will need to:
-    1. take in a PDF file (the resume)
-    2. extract the text from it (using a PDF-parsing library)
-    3. return the text
-
-    Coordinate with the team on:
-    - which PDF library to use (e.g. pdf-parse)
-    - whether it takes the raw file or a filePath (and who fetches it from storage - 
-      probably supabaseService does that first)
-
-*/
