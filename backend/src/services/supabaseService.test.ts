@@ -124,7 +124,6 @@ describe("saveAnalysis", () => {
       userId: "user-123",
       resumeId: "resume-123",
       jobPostingId: "job-123",
-      prompt: "Compare this resume to this job posting",
       result: fakeResult,
     });
 
@@ -132,7 +131,6 @@ describe("saveAnalysis", () => {
       user_id: "user-123",
       resume_id: "resume-123",
       job_posting_id: "job-123",
-      prompt: "Compare this resume to this job posting",
       result: fakeResult,
     });
 

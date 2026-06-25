@@ -102,7 +102,11 @@ function HistoryModal({ isOpen, onClose, historyArray }: HistoryModalProps) {
 
                   {/* the date */}
                   <p className="text-xs text-[#4f5f52]">
-                    {item.createdAt}
+                    {new Date(item.createdAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
                   </p>
 
                   {/* the match score (parsed) - or a fallback if parsing failed */}
