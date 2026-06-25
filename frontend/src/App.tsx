@@ -140,18 +140,11 @@ function App() {
     { id: string; jobListing: string; result: string; createdAt: string }[]
   >([]);
 
-  // ===== CHECK SESSION ON LOAD =====
-  // runs once when the app loads - if there's an existing Supabase session,
-  // log the user back in (so they stay logged in on refresh)
   useEffect(() => {
     const checkSession = async () => {
-      // ask Supabase if there's an active session
       const { data } = await supabase.auth.getSession();
-
       if (data.session) {
         const user = data.session.user;
-
-        // look up the user's username from the profiles table
         const profileResponse = await supabase
           .from("profiles")
           .select("username")
@@ -159,13 +152,10 @@ function App() {
           .single();
 
         const username = profileResponse.data?.username;
-
-        // log them in with their username (fall back to email if no username)
         setIsLoggedIn(true);
         setUserName(username || user.email || "");
       }
     };
-
     checkSession();
   }, []);
 
@@ -253,22 +243,19 @@ function App() {
 
   // ===== AUTH SUCCESS - called when login/signup succeeds =====
   const handleAuthSuccess = (user: string) => {
-    setIsLoggedIn(true);     // flip to logged-in view
-    setUserName(user);       // store their name
-    setIsAuthModalOpen(false); // close the auth modal
+    setIsLoggedIn(true);
+    setUserName(user);
+    setIsAuthModalOpen(false);
   };
 
-  // ===== LOGOUT =====
   const handleLogout = async () => {
-    await supabase.auth.signOut(); // end the Supabase session
-    setIsLoggedIn(false);          // flip back to logged-out view
-    setUserName("");               // clear the name
+    await supabase.auth.signOut();
+    setIsLoggedIn(false);
+    setUserName("");
   };
 
   return (
     <main className="relative min-h-screen flex flex-col items-center text-center px-6 pt-10">
-
-      {/* LOGOUT BUTTON - only shows when logged in (top-right corner) */}
       {isLoggedIn && (
         <button
           type="button"
@@ -279,32 +266,27 @@ function App() {
         </button>
       )}
 
-      {/* ===== ALWAYS SHOWS (logo + title, no condition) ===== */}
       <img
         src={skillSyncLogo}
         alt="Skill Sync logo"
         className="h-20 w-20 mb-1"
       />
-
       <h1 className="text-4xl font-bold uppercase">Skill Sync</h1>
 
-      {/* ===== MASTER SWITCH: logged in shows the app, logged out shows login/signup ===== */}
       {isLoggedIn ? (
-        // ----- LOGGED IN: the main app -----
-        <div>
+        <div className="w-full max-w-2xl">
           <p className="mt-2 text-sm text-[#235c2a]">
             {userName}, leave nothing to chance.
           </p>
 
-          {/* the three action buttons */}
-          <div className="mt-10 flex flex-wrap justify-center gap-12">
-            <Button onClick={() => { setIsResumeModalOpen(true); }}>
+          <div className="mt-10 flex flex-wrap justify-center gap-6">
+            <Button onClick={() => setIsResumeModalOpen(true)}>
               Upload Resume
             </Button>
-            <Button onClick={() => { setIsJobModalOpen(true); }}>
+            <Button onClick={() => setIsJobModalOpen(true)}>
               Upload Job Posting
             </Button>
-            <Button onClick={() => { setIsHistoryModalOpen(true); }}>
+            <Button onClick={() => setIsHistoryModalOpen(true)}>
               Analysis History
             </Button>
           </div>
@@ -346,12 +328,11 @@ function App() {
             </p>
           )}
 
+          {/* Modals */}
           {isResumeModalOpen && (
             <ResumeModal
               isOpen={isResumeModalOpen}
-              onClose={() => {
-                setIsResumeModalOpen(false);
-              }}
+              onClose={() => setIsResumeModalOpen(false)}
               onSave={(filePath) => {
                 setResumeFilePath(filePath);
                 setResumeUploadMessage("Resume uploaded successfully.");
@@ -359,46 +340,50 @@ function App() {
             />
           )}
 
-          {/* JOB MODAL - collects the job posting, sends it up to analyze */}
           {isJobModalOpen && (
             <JobPostingModal
               isOpen={isJobModalOpen}
-              onClose={() => { setIsJobModalOpen(false); }}
+              onClose={() => setIsJobModalOpen(false)}
               onAnalyze={handleAnalyzePlaceholder}
             />
           )}
 
-          {/* HISTORY MODAL - shows the list of past analyses */}
           {isHistoryModalOpen && (
             <HistoryModal
               isOpen={isHistoryModalOpen}
-              onClose={() => { setIsHistoryModalOpen(false); }}
+              onClose={() => setIsHistoryModalOpen(false)}
               historyArray={historyArray}
             />
           )}
         </div>
       ) : (
-        // ----- LOGGED OUT: the login/signup view -----
         <div className="flex w-full flex-col items-center">
           <p className="mt-3 text-xl font-semibold">
             Align your skills. Accelerate your career.
           </p>
-
-          {/* login + signup buttons (each sets the mode, then opens the auth modal) */}
           <div className="mt-10 flex w-full justify-center gap-12">
-            <Button onClick={() => { setAuthMode("login"); setIsAuthModalOpen(true); }}>
+            <Button
+              onClick={() => {
+                setAuthMode("login");
+                setIsAuthModalOpen(true);
+              }}
+            >
               Login
             </Button>
-            <Button onClick={() => { setAuthMode("signup"); setIsAuthModalOpen(true); }}>
+            <Button
+              onClick={() => {
+                setAuthMode("signup");
+                setIsAuthModalOpen(true);
+              }}
+            >
               Signup
             </Button>
           </div>
 
-          {/* AUTH MODAL - handles login/signup, calls handleAuthSuccess when done */}
           {isAuthModalOpen && (
             <AuthModal
               isOpen={isAuthModalOpen}
-              onClose={() => { setIsAuthModalOpen(false); }}
+              onClose={() => setIsAuthModalOpen(false)}
               onAuthSuccess={handleAuthSuccess}
               authMode={authMode}
               setAuthMode={setAuthMode}
