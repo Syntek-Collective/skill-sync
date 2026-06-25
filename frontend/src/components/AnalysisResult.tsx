@@ -99,7 +99,7 @@ function AnalysisResult({ parsedResponse }: AnalysisResultProps) {
         <h2 className="text-lg font-semibold uppercase tracking-wide text-green-950">
           Skill Gap Analysis
         </h2>
-        <div className="mt-4 min-h-32 rounded-md border border-green-900/10 bg-white p-4 text-xs text-[#4f5f52]">
+        <div className="mt-4 min-h-32 rounded-md border border-green-900/10 bg-white p-4 text-xs text-[#7a887d]">
           Your analysis will appear here once you submit a job posting.
         </div>
       </section>

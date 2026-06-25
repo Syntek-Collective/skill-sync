@@ -171,7 +171,7 @@ function App() {
         if (resumeResponse.data) {
           setResumeFilePath(resumeResponse.data.file_path);
           setResumeId(resumeResponse.data.id);
-          setResumeUploadMessage("Using your most recent resume.");
+          setResumeUploadMessage("Using your most recent resume ✓");
         }
 
         // LOAD PAST ANALYSES (history) - join to job_postings to get the real title
@@ -303,7 +303,11 @@ function App() {
   };
 
   return (
-    <main className="relative min-h-screen flex flex-col items-center text-center px-6 pt-10">
+    <main
+      className={`relative min-h-screen flex flex-col items-center text-center px-6 ${
+        isLoggedIn ? "pt-10 pb-16" : "pt-52 pb-16"
+      }`}
+    >
       {isLoggedIn && (
         <button
           type="button"
@@ -340,13 +344,15 @@ function App() {
           </div>
 
           {resumeUploadMessage && (
-            <p className="mt-4 text-sm font-semibold text-green-800">
+            <p className="mt-4 text-sm font-semibold text-[#3f7f52]">
               {resumeUploadMessage}
             </p>
           )}
 
           {isLoading ? (
-            <Loading />
+            <section className="mt-10 flex min-h-48 w-full max-w-3xl items-center justify-center rounded-lg border border-green-900/20 bg-white/80 p-6 shadow-md">
+              <Loading />
+            </section>
           ) : (
             // parse the stringified result into an object before passing it down
             // (or pass null if there's no analysis yet - the component handles the empty state)
@@ -385,7 +391,7 @@ function App() {
               onSave={(filePath, newResumeId) => {
                 setResumeFilePath(filePath);
                 setResumeId(newResumeId);
-                setResumeUploadMessage("Resume uploaded successfully.");
+                setResumeUploadMessage("Resume uploaded successfully ✓");
               }}
             />
           )}
