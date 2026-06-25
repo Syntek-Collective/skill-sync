@@ -13,25 +13,59 @@
 
 */
 
-/*
-
-    TODO
-    write the prompt that gets sent to the AI.
-
-    The prompt should tell the AI:
-    1. its role (e.g. "you are a skill-gap analyzer")
-    2. what it's getting (a resume + a job posting)
-    3. what to do (compare them, find the skills the job wants that the resume is missing)
-    4. how to format the answer (so it comes back in a shape the frontend can display)
-
-    Coordinate with the team on:
-    - exactly what the analysis should include (just the gap? suggestions too?)
-    - the output format/shape (has to match what AnalysisResult expects to display)
-    - whether to give the AI examples (few-shot) to make its answers more consistent
-
-*/
-
-// prompt.ts - the AI instructions (the team will flesh this out)
+import { Roles } from "openai/resources/admin/organization/roles"
 
 
-export const prompt = `You are a skill-gap analyzer. Compare a candidate's resume to a job posting and identify the skill gap.`
+
+//who is the AI
+const role = ``
+
+//what the AI does clearly 
+const task = ``
+
+
+//give the AI helpful context/background that could make it better at what it is for 
+const context = ``
+
+
+//guidance for how skills should be prioritized 
+const prioritization = ``
+
+
+//a clear rubric for how to calculate the matchScore for the users resume and a job listing 
+const scoring = ``
+
+
+//specific rules/constraints for the response
+const rules = ``
+
+
+//the expectation of how the response should be formatted
+const outputFormat = ``
+
+
+//how to handle situations in which you are uncertain of how to respond
+const confidence = ``
+
+
+//define what to do when someone inputs something unexpected 
+const edgeCases = ``
+
+
+//IMPORTANT - provide examples of good inputs and responses as a reference point
+const examples = ``
+
+
+
+export const prompt = `
+    ${role}
+    ${task}
+    ${context}
+    ${prioritization}
+    ${scoring}
+    ${rules}
+    ${outputFormat}
+    ${confidence}
+    ${edgeCases}
+    ${examples}
+`
