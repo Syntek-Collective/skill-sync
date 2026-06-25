@@ -34,9 +34,13 @@
 
 //import express in order to create the router
 import express from 'express'
+import getHistory from '../controllers/historyController'
 
 //create the router 
 const router = express.Router()
+
+// Define the route: We use GET because we are retrieving data
+router.get('/', getHistory);
 
 
 

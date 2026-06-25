@@ -33,3 +33,25 @@
     - whether analyses get SAVED to history in the analyze flow or somewhere else
 
 */
+
+import {Request, Response, NextFunction} from 'express';
+import {getAnalysesForUser} from '../services/supabaseService';
+
+const getHistory = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        // Extract userId (Ensure authMiddleware attaches it correctly)
+        const userId = (req as any).user.id;
+
+        // Fetch the data
+        const analyses = await getAnalysesForUser(userId);
+
+        // Send the successful response
+        res.status(200).json({success: true, data: analyses});
+
+    } catch (error) {
+        // Pass the error to the Express global error handler
+        next(error)
+    }
+}
+
+export default getHistory;
