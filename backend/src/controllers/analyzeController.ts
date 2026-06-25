@@ -42,7 +42,7 @@ import { Request, Response } from 'express'
 import getAnalysis from '../services/openaiService'
 
 // import { fetchResume } from '../services/supabaseService'      //
-// import { extractText } from '../services/pddfService'          //
+// import { extractText } from '../services/pdfService'          //
 
 
 
@@ -66,6 +66,16 @@ const analyzeController = async (req: Request, res: Response) => {
         timeToReady: "2-3 months"
     })
 
+    //PLACEHOLDER RESPONSE
+    //JSON is what we need to convert the data to in order for it to travel back to the front end
+    res.json({
+        //the shape of the response matches the expecatations from the frontend ()
+        result: placeholderResult,
+        id: '123',
+        createdAt: new Date().toISOString()
+    })
+
+
     // //REAL DOING
     // //use the file path from req.body and a function passed in from the supabase service file to get the resume PDF
     // const resumePDF = await fetchResume(resume)
@@ -73,7 +83,11 @@ const analyzeController = async (req: Request, res: Response) => {
     // const resumeText = await extractText(resumePDF)
 
 
-    //RESPOND
+
+    //REAL RESPONSE
     
 
 }
+
+
+export default analyzeController
