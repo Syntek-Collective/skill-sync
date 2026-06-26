@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
@@ -11,6 +11,14 @@ interface ResumeModalProps {
   onSave: (filePath: string, resumeId: string) => void;
 }
 
+// Shape of a resume row we load from Supabase so the user can reuse
+// an already-uploaded resume instead of uploading the same file again.
+type ExistingResume = {
+  id: string;
+  file_name: string;
+  file_path: string;
+};
+
 const ResumeModal: React.FC<ResumeModalProps> = ({
   isOpen,
   onClose,
@@ -19,10 +27,60 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [existingResumes, setExistingResumes] = useState<ExistingResume[]>([]);
+
+  //Load saved resumes when the modal opens.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const loadExistingResumes = async () => {
+      //Only fetch resumes for the logged in user.
+      const { data: userData, error: userError } =
+        await supabase.auth.getUser();
+
+      // Stop if there is no logged-in user, since resumes are user-specific.
+      if (userError || !userData.user) {
+        setExistingResumes([]);
+        return;
+      }
+
+      //Fetch this user's saved resumes so they can reuse one instead of uploading again.
+      const { data, error } = await supabase
+        .from("resumes")
+        .select("id, file_name, file_path")
+        .eq("user_id", userData.user.id)
+        .order("created_at", { ascending: false });
+
+      //If Supabase fails to load resumes stop here
+      if (error) {
+        console.error("Could not load resumes:", error);
+        setError("Could not load existing resumes.");
+        return;
+      }
+
+      //Store the saved resumes or an empty list if none were returned.
+      setExistingResumes(data || []);
+    };
+
+    //run the resume-loading function when the modal opens.
+    loadExistingResumes();
+    //Re-run this effect whenever the modal state changes.
+  }, [isOpen]);
+
+  // Reuse a saved resume instead of uploading again.
+  const handleChooseExistingResume = (resume: ExistingResume) => {
+    onSave(resume.file_path, resume.id);
+    onClose();
+  };
 
   // Logic to handle the file upload to Supabase Storage
   const handleUpload = async () => {
     if (!selectedFile) return;
+
+    if (selectedFile.type !== "application/pdf") {
+      setError("Please upload a PDF file.");
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -88,6 +146,27 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Upload your resume">
+      {existingResumes.length > 0 && (
+        <div className="mb-6 text-left">
+          <p className="mb-2 text-sm font-semibold text-[#003d06]">
+            Choose an existing resume
+          </p>
+
+          <div className="space-y-2">
+            {existingResumes.map((resume) => (
+              <button
+                key={resume.id}
+                type="button"
+                onClick={() => handleChooseExistingResume(resume)}
+                className="w-full rounded border border-[#c8d0c6] px-3 py-2 text-left text-sm text-[#003d06] hover:bg-[#eef8ec]"
+              >
+                {resume.file_name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* File upload block */}
       <div className="mb-6">
         <label
@@ -98,7 +177,7 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
             Choose resume file
           </span>
           <span className="mt-2 text-xs text-[#5f6b61]">
-            PDF or DOCX, max 5 MB
+            PDF only, max 5 MB
           </span>
           <span className="mt-3 text-xs text-[#235c2a]">
             {selectedFile ? selectedFile.name : "No file selected yet"}
@@ -108,7 +187,7 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
         <input
           id="resume-upload"
           type="file"
-          accept=".pdf, .docx"
+          accept=".pdf"
           onChange={(e) => {
             if (e.target.files && e.target.files.length > 0) {
               setSelectedFile(e.target.files[0]);
