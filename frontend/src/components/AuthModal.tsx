@@ -171,7 +171,7 @@ function AuthModal({
       onClose={onClose}
       title={authMode === "login" ? "Log in" : "Sign up"}
     >
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         {/* Only show the name input when the user is signing up */}
         {authMode === "signup" && (
           <input
@@ -180,6 +180,7 @@ function AuthModal({
             value={name}
             required
             onChange={(e) => setName(e.target.value)}
+            className="w-full rounded-lg border border-[#c8d0c6] bg-white px-4 py-3 text-sm text-[#003d06] outline-none placeholder:text-[#8aa08d] focus:border-[#003d06] focus:ring-2 focus:ring-[#003d06]/15"
           />
         )}
 
@@ -189,6 +190,7 @@ function AuthModal({
           value={email}
           required
           onChange={(e) => setEmail(e.target.value)}
+          className="w-full rounded-lg border border-[#c8d0c6] bg-white px-4 py-3 text-sm text-[#003d06] outline-none placeholder:text-[#8aa08d] focus:border-[#003d06] focus:ring-2 focus:ring-[#003d06]/15"
         />
 
         <input
@@ -197,22 +199,29 @@ function AuthModal({
           value={password}
           required
           onChange={(e) => setPassword(e.target.value)}
+          className="w-full rounded-lg border border-[#c8d0c6] bg-white px-4 py-3 text-sm text-[#003d06] outline-none placeholder:text-[#8aa08d] focus:border-[#003d06] focus:ring-2 focus:ring-[#003d06]/15"
         />
 
         {/* Show auth errors to the user when something goes wrong */}
-        {error && <p>{error}</p>}
+        {error && <p className="text-sm font-medium text-red-700">{error}</p>}
 
-        <Button type="submit" disabled={isLoading}>
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="mx-auto rounded-full border border-[#c8d0c6] bg-white px-12 py-3 text-sm font-medium text-[#003d06] shadow-[0_8px_18px_rgba(0,61,6,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#eef8ec] disabled:opacity-60"
+        >
           {isLoading ? <Loading /> : buttonText}
-        </Button>
+        </button>
       </form>
 
       {/* Let the user switch between login and signup */}
-      <Button onClick={switchAuthMode}>
-        {authMode === "login"
-          ? "Need an account? Sign up"
-          : "Already have an account? Log in"}
-      </Button>
+      <div className="mt-4 flex justify-center">
+        <Button onClick={switchAuthMode}>
+          {authMode === "login"
+            ? "Need an account? Sign up"
+            : "Already have an account? Log in"}
+        </Button>
+      </div>
     </Modal>
   );
 }
