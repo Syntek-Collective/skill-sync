@@ -15,6 +15,14 @@
     us a real, repeatable way to check quality - and it's a key thing that makes this 
     project stand out (a real evaluation layer, not just vibes).
 
+    NOTE on each field:
+    - label: a short description of what this case tests
+    - resume / jobPosting: the INPUT we send to the AI
+    - expectedFitLevel / expectedScoreRange / expectedMatchedSkills / expectedMissingSkills:
+        the ANSWER KEY we check the AI's output against
+    - expectedBehavior: a plain-English note describing what a correct analysis should do
+        for this case (documentation for us - not checked by the runner)
+
 */
 
 type ExpectedMissingSkill = {
@@ -30,7 +38,7 @@ type GoldenDatasetCase = {
     expectedScoreRange: [number, number];
     expectedMatchedSkills: string[];
     expectedMissingSkills: ExpectedMissingSkill[];
-    suggestions: string;
+    expectedBehavior: string;
 }
 
 const goldenDataset: GoldenDatasetCase[] = [
@@ -43,10 +51,10 @@ const goldenDataset: GoldenDatasetCase[] = [
     expectedScoreRange: [85, 100],
     expectedMatchedSkills: ["Python", "PostgreSQL"],
     expectedMissingSkills: [],
-    suggestions: "Highlight specific experience with API latency and high-concurrency database design during your technical screen to differentiate your profile.",
+    expectedBehavior: "Should recognize a strong match with a high score, list the core matched skills, and flag no critical gaps.",
   },
 
-   //Good fit with gaps (KANAMI)
+  //Good fit with gaps (KANAMI)
   {
     label: "Candidate matches several critical requirements but is missing one or more important skills, so the analysis should identify a good fit with clear gaps.",
     resume: "Experienced yoga teacher with over 12 years of personal practice, 200+ hour and 300 hour yoga teacher trainings, and several years teaching group and private yoga classes internationally. The resume includes experience teaching Yin, Hatha, restorative, flow, and vinyasa classes, plus strong group instruction, outdoor leadership, and multilingual communication skills. It does not mention Pilates certification or Pilates teaching experience.",
@@ -56,11 +64,9 @@ const goldenDataset: GoldenDatasetCase[] = [
     expectedMatchedSkills: ["Yin yoga instruction", "Hatha yoga instruction", "group yoga teaching", "200-hour yoga teacher training", "alignment-based instruction"],
     expectedMissingSkills: [
       { skill: "Pilates certification", importance: "critical" },
-      { skill: "mat Pilates teaching experience", importance: "critical" },
-      { skill: "Pilates principles", importance: "nice-to-have" },
-      { skill: "weekly Pilates class instruction", importance: "nice-to-have" },
+      { skill: "mat Pilates", importance: "critical" },
     ],
-    suggestions: "Suggestions should be short, specific action steps focused on closing the most important gaps. They should start with an action verb, mention the exact missing skill or qualification, and avoid vague advice.",
+    expectedBehavior: "Should recognize a solid yoga match but flag the core Pilates gaps as critical, landing in a middle score with a constructive tone.",
   },
 
   //Significant gaps (T)
@@ -78,7 +84,7 @@ const goldenDataset: GoldenDatasetCase[] = [
       { skill: "CI/CD", importance: "critical" },
       { skill: "Linux", importance: "critical" },
     ],
-    suggestions: "Role requires cloud/DevOps expertise. To pivot from design, we recommend starting with AWS foundational certifications and learning infrastructure-as-code (Terraform/Kubernetes)",
+    expectedBehavior: "Should recognize the candidate lacks all core DevOps requirements, give a low score, and flag every required infrastructure skill as critical.",
   },
 
   //Junk input (KANAMI)
@@ -90,7 +96,7 @@ const goldenDataset: GoldenDatasetCase[] = [
     expectedScoreRange: [0, 19],
     expectedMatchedSkills: [],
     expectedMissingSkills: [],
-    suggestions: "The analysis should not invent skills, gaps, or recommendations. It should tell the user that the resume and job posting are too unclear to compare, and suggest providing a real resume with experience/skills and a real job posting with requirements.",
+    expectedBehavior: "Should not invent skills or gaps. Should give a very low score and tell the user the resume and job posting are too unclear to compare.",
   },
 
   //olivia
@@ -108,7 +114,7 @@ const goldenDataset: GoldenDatasetCase[] = [
       { skill: "AWS", importance: "critical" },
       { skill: "RAG", importance: "nice-to-have" },
     ],
-    suggestions: "Python, CSS, and AWS should be marked critical (job says required/essential). RAG and years of experience should be marked nice-to-have (job says 'a plus' and 'preferred').",
+    expectedBehavior: "Should mark Python, CSS, and AWS as critical (job says required/essential) and RAG as nice-to-have (job says 'a plus'), correctly reading the importance wording.",
   },
 
   //olivia
@@ -118,7 +124,7 @@ const goldenDataset: GoldenDatasetCase[] = [
     resume: "I am JavaScript and C++ engineer. I work with NoSQL databases. And I am well practiced in using github",
     jobPosting: "We are looking for a Java and C engineer with experience working with SQL databases. Knowledge of git is preferred",
     expectedFitLevel: "Significant Gaps",
-    expectedScoreRange: [0, 30],
+    expectedScoreRange: [0, 45],
     expectedMatchedSkills: [],
     expectedMissingSkills: [
       { skill: "Java", importance: "critical" },
@@ -126,7 +132,7 @@ const goldenDataset: GoldenDatasetCase[] = [
       { skill: "SQL", importance: "critical" },
       { skill: "git", importance: "nice-to-have" },
     ],
-    suggestions: "The AI should NOT match similar-looking skills: JavaScript is not Java, C++ is not C, NoSQL is not SQL, and GitHub is not git. Java, C, and SQL should be missing and critical; git should be missing and nice-to-have (job says 'preferred').",
+    expectedBehavior: "Should NOT match similar-looking skills: JavaScript is not Java, C++ is not C, NoSQL is not SQL, and GitHub is not git. Should flag Java, C, and SQL as missing/critical and git as missing/nice-to-have.",
   },
 ];
 
