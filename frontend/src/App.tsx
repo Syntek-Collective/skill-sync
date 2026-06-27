@@ -393,6 +393,13 @@ function App() {
                 setResumeId(newResumeId);
                 setResumeUploadMessage("Resume uploaded successfully ✓");
               }}
+              onDelete={(deletedResumeId) => {
+                if (deletedResumeId === resumeId) {
+                  setResumeFilePath(null);
+                  setResumeId(null);
+                  setResumeUploadMessage("");
+                }
+              }}
             />
           )}
 

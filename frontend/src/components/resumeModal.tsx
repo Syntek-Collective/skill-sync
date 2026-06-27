@@ -9,6 +9,7 @@ interface ResumeModalProps {
   onClose: () => void;
   // now passes BOTH the filePath AND the new resume's id up to App.tsx
   onSave: (filePath: string, resumeId: string) => void;
+  onDelete: (resumeId: string) => void;
 }
 
 // Shape of a resume row we load from Supabase so the user can reuse
@@ -23,6 +24,7 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
   isOpen,
   onClose,
   onSave,
+  onDelete,
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +73,46 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
   const handleChooseExistingResume = (resume: ExistingResume) => {
     onSave(resume.file_path, resume.id);
     onClose();
+  };
+
+  // Deletes the selected resume from Supabase Storage, removes its database row, and updates the modal list.
+  const handleDeleteResume = async (resume: ExistingResume) => {
+    //Clear any old error message
+    setError(null);
+
+    //Delete PDF file from resumes Storage bucket.
+    const { error: storageError } = await supabase.storage
+      .from("resumes")
+      .remove([resume.file_path]);
+
+    if (storageError) {
+      console.error("Could not delete resume file:", storageError);
+      setError("Could not delete resume file");
+      return;
+    }
+
+    //Delete database row for selected resume.
+    const { data: deletedRows, error: databaseError } = await supabase
+      .from("resumes")
+      .delete()
+      .eq("id", resume.id)
+      .select();
+
+    console.log("deleted rows:", deletedRows);
+
+    if (databaseError) {
+      console.error("Could not delete resume row:", databaseError);
+      setError("Could not delete resume");
+      return;
+    }
+
+    //Remove the deleted resume from the screen.
+    setExistingResumes((currentREsumes) =>
+      currentREsumes.filter((item) => item.id !== resume.id),
+    );
+
+    //Tell App.tsx that this resume was deleted so it can clear old selected resume state.
+    onDelete(resume.id);
   };
 
   // Logic to handle the file upload to Supabase Storage
@@ -154,14 +196,23 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
 
           <div className="space-y-2">
             {existingResumes.map((resume) => (
-              <button
-                key={resume.id}
-                type="button"
-                onClick={() => handleChooseExistingResume(resume)}
-                className="w-full rounded border border-[#c8d0c6] px-3 py-2 text-left text-sm text-[#003d06] hover:bg-[#eef8ec]"
-              >
-                {resume.file_name}
-              </button>
+              <div key={resume.id} className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleChooseExistingResume(resume)}
+                  className="flex-1 rounded border border-[#c8d0c6] px-3 py-2 text-left text-sm text-[#003d06] hover:bg-[#eef8ec]"
+                >
+                  {resume.file_name}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDeleteResume(resume)}
+                  className="rounded border border-red-300 px-3 py-2 text-sm text-red-700 hover:bg-red-50"
+                >
+                  Delete
+                </button>
+              </div>
             ))}
           </div>
         </div>
