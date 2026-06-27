@@ -43,6 +43,7 @@ const rules = `
     - Only use information actually present in the resume. Never invent or assume skills or experience.
     - Only list a skill as "matched" if there is real evidence for it in the resume.
     - Only list a skill as "missing" if the job posting actually requires or asks for it.
+    - Treat similar-looking but distinct skills as DIFFERENT, not matches: Java is not JavaScript, C is not C++, SQL is not NoSQL, git is not GitHub. If the job requires one and the resume only has the look-alike, flag it as missing.
 
     RATING SKILL IMPORTANCE (the "importance" field on each missing skill):
     - Mark a skill as "critical" if it is: explicitly required, listed as a core responsibility,

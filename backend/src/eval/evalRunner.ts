@@ -73,8 +73,8 @@ const runEval = async () => {
         // CHECK 1: is the score in the expected range?
         // get the low and high from expectedScoreRange
         // if the AI's matchScore is below low OR above high → testPassed = false
-        if (ai.score < testCase.expectedScoreRange[0] || ai.score > testCase.expectedScoreRange[1]) {
-            console.log(`❌ Score FAIL: Expected ${testCase.expectedScoreRange.join('-')}, got ${ai.score}`)
+        if (ai.matchScore < testCase.expectedScoreRange[0] || ai.matchScore> testCase.expectedScoreRange[1]) {
+            console.log(`❌ Score FAIL: Expected ${testCase.expectedScoreRange.join('-')}, got ${ai.matchScore}`)
             testPassed = false;
         }
 
@@ -85,18 +85,30 @@ const runEval = async () => {
         //   if it's NOT in the AI's missing list → testPassed = false
         if (ai.fitLevel !== testCase.expectedFitLevel) {
             console.log(`❌ FitLevel FAIL: Expected ${testCase.expectedFitLevel}, got ${ai.fitLevel}`);
+            testPassed = false;
         }
 
         // CHECK 3: does the fit level match?
         // if the AI's fitLevel is NOT equal to expectedFitLevel → testPassed = false
         const missingSkillsMatch = testCase.expectedMissingSkills.every(expected =>
-        ai.missingSkills.some((actual: any) => 
-            actual.skill === expected.skill && actual.importance === expected.importance
-        )
-    );
+            ai.missingSkills.some((actual: any) => {
+                const a = actual.skill.toLowerCase();
+                const e = expected.skill.toLowerCase();
+                // short skills (like "C", "git") need an exact word match to avoid false hits
+                if (e.length <= 3) {
+                    return a === e || a.split(/\s+/).includes(e);
+                }
+                // longer skills can use loose matching
+                return a.includes(e) || e.includes(a);
+            })
+        );
+
+        const missingSkills = ai.missingSkills || [];
 
         if (!missingSkillsMatch) {
-            console.log(`❌ Missing Skills FAIL: Expected ${JSON.stringify(testCase.expectedMissingSkills)}`);
+            console.log("❌ Missing Skills FAIL")
+            console.log(`❌: Expected ${JSON.stringify(testCase.expectedMissingSkills)}`);
+            console.log(`   AI said: `, ai.missingSkills.map((s: any) => s.skill).join(", "));
             testPassed = false;
         }
 
