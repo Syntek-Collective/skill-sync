@@ -1,12 +1,13 @@
 /*
   CANDIDATE UPLOAD MODAL
 
-  Lets a recruiter pick several resume PDFs for the current job (up to 10 per job in total).
+  Lets a recruiter pick several resume PDFs for the current job (up to 10 per job in total),
+  either with the file picker or by dragging and dropping them onto the dashed box.
   Each file is uploaded to the private "resumes" storage bucket under the recruiter's user id,
   and gets a row in the resumes table. The parent receives the new candidates to analyze.
 */
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
@@ -39,7 +40,28 @@ const CandidateUploadModal: React.FC<CandidateUploadModalProps> = ({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  // true while files are being dragged over the dialog, to highlight the drop box
+  const [isDragging, setIsDragging] = useState(false);
+  // dragenter/dragleave also fire when moving between child elements, so count them;
+  // the highlight only turns off when the drag has really left the dialog (count back to 0)
+  const dragDepth = useRef(0);
 
+  // While the dialog is open, stop the browser's default "open the dropped file" behavior
+  // everywhere on the page. Without this, a PDF dropped just outside the box would open in
+  // the tab and the recruiter would lose the job they were working on.
+  useEffect(() => {
+    if (!isOpen) return;
+    const preventFileOpen = (event: DragEvent) => event.preventDefault();
+    window.addEventListener("dragover", preventFileOpen);
+    window.addEventListener("drop", preventFileOpen);
+    return () => {
+      window.removeEventListener("dragover", preventFileOpen);
+      window.removeEventListener("drop", preventFileOpen);
+    };
+  }, [isOpen]);
+
+  // Checks and stores the chosen files - used by both the file picker and drag and drop.
+  // A new selection replaces the previous one (same as picking files again).
   const handleSelect = (fileList: FileList | null) => {
     setError(null);
     const files = Array.from(fileList ?? []);
@@ -129,52 +151,99 @@ const CandidateUploadModal: React.FC<CandidateUploadModalProps> = ({
     onClose();
   };
 
+  // ===== DRAG AND DROP =====
+  // These handlers sit on the whole dialog body, so a drop anywhere inside it counts,
+  // not only a drop exactly on the dashed box.
+
+  const handleDragEnter = (event: React.DragEvent) => {
+    event.preventDefault();
+    dragDepth.current += 1;
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent) => {
+    event.preventDefault();
+    dragDepth.current -= 1;
+    if (dragDepth.current <= 0) {
+      dragDepth.current = 0;
+      setIsDragging(false);
+    }
+  };
+
+  // dragover must call preventDefault, or the browser won't allow a drop here
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
+  };
+
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    dragDepth.current = 0;
+    setIsDragging(false);
+    // ignore drops while an upload is already in progress
+    if (!isLoading) handleSelect(event.dataTransfer.files);
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add candidate resumes">
-      <div className="mb-6">
-        <label
-          htmlFor="candidate-upload"
-          className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-[#9caf9a] bg-[#f7faf6] px-6 py-5 text-center transition hover:border-[#003d06] hover:bg-[#eef8ec]"
-        >
-          <span className="text-sm font-semibold text-[#003d06]">
-            Choose resume files
-          </span>
-          <span className="mt-2 text-xs text-[#5f6b61]">
-            PDF only, max 5 MB each, up to {remainingSlots} more for this job
-          </span>
-          <span className="mt-3 text-xs text-[#235c2a]">
-            {selectedFiles.length > 0
-              ? `${selectedFiles.length} file${selectedFiles.length === 1 ? "" : "s"} selected`
-              : "No files selected yet"}
-          </span>
-        </label>
+      <div
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
+        <div className="mb-6">
+          {/* the dashed box: click to open the file picker, or drop files on it.
+              It turns darker while files are dragged over the dialog. */}
+          <label
+            htmlFor="candidate-upload"
+            className={`flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-5 text-center transition hover:border-[#003d06] hover:bg-[#eef8ec] ${
+              isDragging ? "border-[#003d06] bg-[#e2f2df]" : "border-[#9caf9a] bg-[#f7faf6]"
+            }`}
+          >
+            <span className="text-sm font-semibold text-[#003d06]">
+              {isDragging ? "Drop PDFs here" : "Drag PDFs here or click to choose"}
+            </span>
+            <span className="mt-2 text-xs text-[#5f6b61]">
+              PDF only, max 5 MB each, up to {remainingSlots} more for this job
+            </span>
+            <span className="mt-3 text-xs text-[#235c2a]">
+              {selectedFiles.length > 0
+                ? `${selectedFiles.length} file${selectedFiles.length === 1 ? "" : "s"} selected`
+                : "No files selected yet"}
+            </span>
+          </label>
 
-        <input
-          id="candidate-upload"
-          type="file"
-          accept=".pdf"
-          multiple
-          onChange={(e) => handleSelect(e.target.files)}
-          className="hidden"
-        />
+          <input
+            id="candidate-upload"
+            type="file"
+            accept=".pdf"
+            multiple
+            onChange={(e) => handleSelect(e.target.files)}
+            className="hidden"
+          />
 
-        {selectedFiles.length > 0 && (
-          <ul className="mt-3 space-y-1 text-left text-xs text-[#4f5f52]">
-            {selectedFiles.map((file) => (
-              <li key={`${file.name}-${file.size}`}>{file.name}</li>
-            ))}
-          </ul>
-        )}
-      </div>
+          {selectedFiles.length > 0 && (
+            <ul className="mt-3 space-y-1 text-left text-xs text-[#4f5f52]">
+              {selectedFiles.map((file) => (
+                <li key={`${file.name}-${file.size}`}>{file.name}</li>
+              ))}
+            </ul>
+          )}
+        </div>
 
-      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+        {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
-      <div className="flex justify-end gap-2">
-        <Button onClick={onClose}>Cancel</Button>
-        {/* Disable button during upload to prevent duplicate submissions */}
-        <Button onClick={handleUpload} disabled={isLoading || selectedFiles.length === 0}>
-          {isLoading ? "Uploading..." : "Add resumes"}
-        </Button>
+        <div className="flex justify-end gap-2">
+          <Button onClick={onClose}>Cancel</Button>
+          {/* Disable button during upload to prevent duplicate submissions */}
+          <Button
+            variant="primary"
+            onClick={handleUpload}
+            disabled={isLoading || selectedFiles.length === 0}
+          >
+            {isLoading ? "Uploading..." : "Add resumes"}
+          </Button>
+        </div>
       </div>
     </Modal>
   );
