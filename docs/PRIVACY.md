@@ -33,7 +33,7 @@ For a private job, nothing in that process is written to the database or to disk
 
 ### What goes to OpenAI
 
-The job posting text (to extract requirements) and each resume's redacted text (to match it). Requests use your own API key, so they fall under **your** OpenAI account and [OpenAI's API data policies](https://openai.com/policies/). SkillSync doesn't send names separately. Names inside the resume text aren't removed, but the AI is told to ignore them and never mention them.
+The job posting text (to extract requirements) and each resume's redacted text (to match it). Requests use your own API key, so they fall under **your** OpenAI account and [OpenAI's API data policies](https://openai.com/policies/). Every call sends `store: false`, so OpenAI doesn't keep the response in your account's stored responses. That setting doesn't change OpenAI's own separate retention for abuse monitoring, which its policies describe. SkillSync doesn't send names separately. Names inside the resume text aren't removed, but the AI is told to ignore them and never mention them.
 
 ## Fairness safeguards
 

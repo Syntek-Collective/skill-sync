@@ -146,6 +146,7 @@ The UI recommends a separate OpenAI project key with a monthly budget.
 
 ## Known issues
 
-- **Delete job:** doesn't remove resumes that were uploaded to a saved job but never analyzed.
+- **Saved jobs with no results:** a saved job whose resumes were never analyzed (or all failed) doesn't appear in Past jobs, so it can't be deleted there. Past jobs is built from results, and new saved jobs can't be told apart from the older job-seeker postings without a schema change. *Fix:* add a job-to-resume table or a marker column. This is the first item for the schema migrations. (Copilot review on PR #1)
+- **Delete job:** for the same reason, it doesn't remove resumes uploaded to a saved job but never analyzed. The same schema change fixes it.
 - **Reloading:** a private job is lost on reload by design, so download first.
-- **The 10-resume limit:** for saved jobs it can be slightly exceeded when several requests arrive at once. For private jobs it's enforced in the browser only.
+- **The 10-resume limit:** for saved jobs it can be slightly exceeded when several requests arrive at once (the count and the save aren't atomic). For private jobs it's enforced in the browser only. *Fix:* reserve a slot in the database before analyzing. Low impact, since each run uses the user's own key.

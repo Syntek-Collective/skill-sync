@@ -46,7 +46,7 @@ The request body decides the mode on the server: ids mean saved, `resumePdf` or 
    - `computeScore` weighs required ×2 and preferred ×1, with credit met 1, partial 0.5, not met 0, then rounds earned ÷ possible × 100.
    - `scoreBand`: Strong match ≥ 80, Partial match ≥ 50, otherwise Weak match.
 
-Both AI calls use the **Responses API with strict JSON schemas** (`openaiService.ts`), so the reply always parses into the expected shape. The model comes from `OPENAI_MODEL` (default `gpt-5-mini`). Reasoning models (`gpt-5*`, `o*`) get `reasoning.effort: "low"` for speed.
+Both AI calls use the **Responses API with strict JSON schemas** (`openaiService.ts`), so the reply always parses into the expected shape. The model comes from `OPENAI_MODEL` (default `gpt-5-mini`). Reasoning models (`gpt-5*`, `o*`) get `reasoning.effort: "low"` for speed. Every call sends `store: false`, so responses aren't saved in the user's OpenAI account.
 
 ## API
 
@@ -104,7 +104,8 @@ Errors come back as `{ "error": "message for the user" }`.
 |---|---|
 | `400` | Missing or invalid input (including broken JSON), a missing OpenAI key, or the key can't use the model |
 | `401` | Not logged in, or OpenAI rejected the key |
-| `404` | A saved resume, posting or job isn't the user's |
+| `404` | A saved resume, posting or job isn't the user's (including a resume whose stored file path is outside the user's folder) |
+| `422` | The posting has no concrete requirements to match against |
 | `409` | A saved job already has 10 analyzed candidates |
 | `413` | The request body is over the size limit (8 MB on `/api/analyze`, 100 KB elsewhere) |
 | `429` | OpenAI rate limit, or the key is out of credit |
