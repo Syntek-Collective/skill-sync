@@ -33,7 +33,14 @@ export const requirementsPrompt = `
     - Mark a requirement "required" if the posting says it is required or must-have, names it in the
       job title, makes it a core responsibility, or emphasizes it. Mark it "preferred" if it is described
       as preferred, a plus, a bonus, or mentioned only in passing.
-    - Merge duplicates. Skip generic traits that a resume can't show (e.g. "team player", "passionate").
+    - Each requirement must be something a resume can show evidence for. Skip:
+      - logistics: schedule, availability, hours, number of shifts or classes, start date, travel
+      - location: city, commute, on-site or remote, relocation
+      - work authorization, visas, citizenship, or residency
+      - personality and style traits (e.g. "team player", "passionate", "calm, supportive teaching style")
+    - Merge overlapping requirements into one. If several lines are about the same skill or credential
+      (e.g. "Pilates certification", "teach mat Pilates", "teach 2 mat Pilates classes"), list it once
+      or at most split credential from experience - never count the same skill three times.
     - Never include requirements about age, gender, race, ethnicity, nationality, religion, disability,
       marital or family status, or appearance, even if the posting mentions them.
 `
