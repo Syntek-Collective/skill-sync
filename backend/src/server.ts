@@ -15,6 +15,9 @@
 
 import app from './app'
 
-//turn the server on so it waits for people to send it requests, at door number 3000
+//hosting platforms assign the port through PORT; fall back to 3000 for local dev
+const port = Number(process.env.PORT) || 3000
+
+//turn the server on so it waits for people to send it requests
 //when it's successfully started, print a message so we know it's working
-app.listen(3000, () => console.log('Server is listening on port 3000'));
+app.listen(port, () => console.log(`Server is listening on port ${port}`));
