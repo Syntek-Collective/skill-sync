@@ -38,7 +38,7 @@ The request body decides the mode on the server: ids mean saved, `resumePdf` or 
    - Ids (`r1`, `r2`, …) are assigned in code.
    - Things a resume can't show are skipped: schedule, location, work authorization, personality traits. Overlapping items are merged, and protected characteristics are never included.
 2. **Match each resume:** `POST /api/analyze`, once per resume.
-   - The PDF is turned into text (`pdfService`), then emails, phone numbers and links are replaced with `[email]` / `[phone]` / `[link]` (`redact.ts`).
+   - The PDF is turned into text (`pdfService`), then recognized emails, phone numbers and links are replaced with `[email]` / `[phone]` / `[link]` (`redact.ts`). This is best-effort pattern matching: some international phone formats and bare domains aren't caught.
    - The AI (`matchPrompt`) marks every requirement `met` / `partial` / `not_met` with evidence. It also returns a one-line summary, strengths, concerns and interview questions, while ignoring names, age and other protected traits.
    - Skills that are a standard part of a listed credential can count as `partial`, never `met`.
 3. **Score in code** (`services/scoring.ts`):
@@ -86,11 +86,18 @@ type CandidateResult = {
 };
 ```
 
-This route accepts JSON bodies up to **8 MB** (to fit a base64 PDF). Every other route keeps Express's 100 KB default.
+Both analyze endpoints (`/api/analyze` and `/api/analyze/requirements`) accept JSON bodies up to **8 MB**, because the larger parser is mounted on the `/api/analyze` prefix to fit a base64 PDF. The requirements endpoint still caps `jobText` at 20,000 characters. Every other route keeps Express's 100 KB default.
 
 ### `DELETE /api/history/:jobPostingId`
 
-This is Past jobs → **Delete job**. It deletes the job's analyses, then each resume (file and row) those analyses used, unless another analysis still uses it, and finally the job posting. Responses: `204` on success, `404` if the job isn't the user's.
+This is Past jobs → **Delete job**. The order is deliberate, so a failure partway through can be retried:
+
+1. Find the resumes this job's analyses used, skipping any that another job's analysis still uses.
+2. Delete their **files** from storage (and the posting's file, for older postings), checking every storage error.
+3. Delete the job's **analyses**. They're the only link from a job to its resumes, so they're kept until the files are gone.
+4. Delete the **resume rows**, then the **job posting**.
+
+Responses: `204` on success, `404` if the job isn't the user's.
 
 ### `GET /api/history`
 
@@ -107,7 +114,7 @@ Errors come back as `{ "error": "message for the user" }`.
 | `404` | A saved resume, posting or job isn't the user's (including a resume whose stored file path is outside the user's folder) |
 | `422` | The posting has no concrete requirements to match against |
 | `409` | A saved job already has 10 analyzed candidates |
-| `413` | The request body is over the size limit (8 MB on `/api/analyze`, 100 KB elsewhere) |
+| `413` | The request body is over the size limit (8 MB on `/api/analyze` and `/api/analyze/requirements`, 100 KB elsewhere) |
 | `429` | OpenAI rate limit, or the key is out of credit |
 | `502` / `500` | OpenAI or the server failed |
 

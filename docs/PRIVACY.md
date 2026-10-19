@@ -9,7 +9,7 @@ SkillSync handles resumes, which are other people's personal information. It's b
 - **By default, nothing is stored.** Job postings, resumes and results live only in your browser tab, and are gone when you leave or reload.
 - **Saving is opt-in, per job.** If you tick **"Save this job"**, that job's posting, resumes and results are stored in your account until you delete the job.
 - **Your OpenAI key is yours.** It stays in your browser tab and is sent with each analysis. The server uses it for that one call and never stores or logs it.
-- **Resume text goes to OpenAI** under your key, with contact details removed first.
+- **Resume text goes to OpenAI** under your key, with common contact details removed first. The removal is best-effort, so some formats can slip through (see below).
 
 ## What happens to each piece of data
 
@@ -25,7 +25,7 @@ SkillSync handles resumes, which are other people's personal information. It's b
 
 1. It receives the PDF (base64 in the request body, max 5 MB) and checks it's a PDF.
 2. It extracts the text in memory.
-3. It replaces emails, phone numbers and links with `[email]`, `[phone]` and `[link]`.
+3. It replaces contact details it recognizes with `[email]`, `[phone]` and `[link]`: email addresses, North American-style phone numbers, and links starting with `http`/`www` or pointing to LinkedIn or GitHub. This is **best-effort**. Other formats (for example `+44 20 7946 0958` or a bare domain like `portfolio.example.com`) aren't recognized and are sent as-is.
 4. It sends that text and the job's requirement list to OpenAI using **your** key.
 5. It calculates the score and returns the result.
 
@@ -52,7 +52,7 @@ Some places regulate automated tools used in hiring (for example New York City's
 - **Past jobs** lists only jobs you saved.
 - **Delete job** permanently removes:
   - that job's results
-  - the resume files and rows those results used
+  - the resume files and rows those results used, **except** a resume another job's results still use (only possible with older data, where one resume could be analyzed for several jobs). That resume stays until the other job is deleted too.
   - the job posting
 - **Not covered by Delete job yet:**
   - a resume uploaded to a saved job but never analyzed

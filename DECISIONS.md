@@ -105,7 +105,7 @@ The UI recommends a separate OpenAI project key with a monthly budget.
 **Guardrails:**
 - Framed as a **review aid**, not a hiring decision.
 - The AI ignores names, age and other protected traits.
-- Contact details are removed before the AI sees the text.
+- Common contact details are removed before the AI sees the text (best-effort pattern matching).
 
 **Status:** decided (the team agreed to "skill match"; the recruiter direction followed from it)
 

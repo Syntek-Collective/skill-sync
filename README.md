@@ -29,7 +29,7 @@ Score = earned ÷ possible × 100. Bands: **Strong match** (80+), **Partial matc
 
 ### Fairness
 
-- Contact details (emails, phone numbers, links) are removed from resume text before it goes to the AI.
+- Common contact details are removed from resume text before it goes to the AI: email addresses, North American-style phone numbers, and links starting with `http`/`www` or pointing to LinkedIn or GitHub. This is best-effort pattern matching, so other formats (for example some international phone numbers or bare domains like `portfolio.example.com`) can remain.
 - The AI is told to ignore names, age, gender, ethnicity, photos, addresses, and anything that hints at them (like graduation years). It never mentions them.
 - Requirements a resume can't show are left out: schedule, location, work authorization, personality traits.
 

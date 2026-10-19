@@ -34,7 +34,10 @@ A quick summary for reviewers. Details are in [docs/PRIVACY.md](docs/PRIVACY.md)
 - **Saved data:** the backend uses Supabase's service-role key, which bypasses row-level security, so every lookup is filtered by the verified user's id. The browser uses the public anon key and relies on row-level security.
 - **API keys:** users' OpenAI keys are sent per request in a header, used for one call, and never stored or logged. OpenAI errors are logged by status code only.
 - **Private by default:** unless a recruiter opts in to saving a job, resumes are read in memory and discarded.
-- **Uploads:** resume PDFs are limited to 5 MB and must have a PDF header. Stored files never use the original file name.
+- **Uploads:**
+  - **Private jobs:** the server enforces the limits. PDFs must be 5 MB or smaller and start with a PDF header.
+  - **Saved jobs:** the browser uploads PDFs straight to Supabase Storage after its own size and type checks. The server doesn't repeat those checks when it later downloads the file, so treat them as client-side only, and set a file size limit on the `resumes` storage bucket.
+  - Stored files never use the original file name.
 
 ## For contributors
 
