@@ -10,11 +10,35 @@ body {
   min-height: 100%;
   margin: 0;
   font-family: "JetBrains Mono", monospace;
+  /* soft green shown for a moment while the background image loads */
+  background-color: #dcefd9;
+  color: #003d06;
+}
+
+/* THE BACKGROUND IMAGE
+   It lives on a layer pinned to the browser WINDOW instead of on the body.
+   On the body, "cover" stretched the image to fit the whole PAGE, so when the page got taller
+   (e.g. opening a candidate's details) the 1672x941 image was blown up several times and looked
+   zoomed and pixelated. Pinned to the window, it's always sized to the screen and the content
+   scrolls over it.
+   (background-attachment: fixed would be shorter, but Safari on iPhone/iPad ignores it.) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  /* behind all page content */
+  z-index: -1;
   background-image: url("./assets/skillsync-background-final.png");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  color: #003d06;
+}
+
+/* the PDF report (print) should be plain white, without the watercolor */
+@media print {
+  body::before {
+    display: none;
+  }
 }
 
 #root {
