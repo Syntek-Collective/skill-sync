@@ -328,3 +328,17 @@ describe("requirementsController - unsaved mode", () => {
     expect(mockExtractRequirements).not.toHaveBeenCalled();
   });
 });
+
+describe("requirementsController - posting with no concrete requirements", () => {
+  it("returns 422 with a clear message instead of an empty list", async () => {
+    mockExtractRequirements.mockResolvedValue([]);
+    const { req, res } = setup({ jobText: "Looking for someone great. Must be awesome." });
+
+    await requirementsController(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(422);
+    expect(res.json).toHaveBeenCalledWith({
+      error: expect.stringContaining("Couldn't find concrete requirements"),
+    });
+  });
+});

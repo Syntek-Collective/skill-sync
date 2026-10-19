@@ -175,6 +175,12 @@ const CandidateUploadModal: React.FC<CandidateUploadModalProps> = ({
     onClose();
   };
 
+  // Closing (the X or Cancel) is blocked while a saved upload is running: the upload loop would keep
+  // going after the dialog closed and could add these resumes to whatever job is open next.
+  const handleClose = () => {
+    if (!isLoading) onClose();
+  };
+
   // ===== DRAG AND DROP =====
   // These handlers sit on the whole dialog body, so a drop anywhere inside it counts,
   // not only a drop exactly on the dashed box.
@@ -208,7 +214,7 @@ const CandidateUploadModal: React.FC<CandidateUploadModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add candidate resumes">
+    <Modal isOpen={isOpen} onClose={handleClose} title="Add candidate resumes">
       <div
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
@@ -258,7 +264,9 @@ const CandidateUploadModal: React.FC<CandidateUploadModalProps> = ({
         {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
         <div className="flex justify-end gap-2">
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={handleClose} disabled={isLoading}>
+            Cancel
+          </Button>
           {/* Disable button during upload to prevent duplicate submissions */}
           <Button
             variant="primary"
