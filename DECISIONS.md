@@ -154,7 +154,6 @@ The UI recommends a separate OpenAI project key with a monthly budget.
 ## Open questions
 
 - **Supabase schema:** export the tables, row-level security policies and storage policies as SQL migrations, so new contributors can set up a project.
-- **Code of conduct contact:** who receives reports (see `CODE_OF_CONDUCT.md`).
 
 ## Known issues
 

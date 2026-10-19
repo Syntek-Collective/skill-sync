@@ -27,7 +27,7 @@ This applies in all project spaces (issues, pull requests, discussions, and othe
 
 ## Reporting
 
-If you experience or see unacceptable behavior, contact the maintainers at **[ADD CONTACT EMAIL BEFORE PUBLISHING]**. All reports will be reviewed promptly and kept confidential, and we won't tolerate retaliation against anyone who reports in good faith.
+If you experience or see unacceptable behavior, contact the maintainers at **kanamianderson@gmail.com**. All reports will be reviewed promptly and kept confidential, and we won't tolerate retaliation against anyone who reports in good faith.
 
 ## Enforcement
 
