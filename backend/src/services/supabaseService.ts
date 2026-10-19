@@ -192,3 +192,83 @@ export async function countAnalysesForJob(jobPostingId: string, userId: string):
 
     return count ?? 0;
 }
+
+//Permanently deletes one of this user's SAVED jobs: its analyses, the resume files and rows
+//those analyses used, and the job posting itself. This is the "Delete job" button in Past jobs,
+//so recruiters who opt in to saving can always remove candidates' data again.
+//Returns false if the job doesn't exist or belongs to someone else (nothing is deleted).
+export async function deleteSavedJob(jobPostingId: string, userId: string): Promise<boolean> {
+    //1. make sure the job belongs to this user before touching anything
+    const { data: job, error: jobError } = await supabase
+        .from("job_postings")
+        .select("id, file_path")
+        .eq("id", jobPostingId)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+    if (jobError) throw new Error(`Could not find job: ${jobError.message}`);
+    if (!job) return false;
+
+    //2. find which resumes this job's analyses used (before deleting the analyses)
+    const { data: analysisRows, error: analysesError } = await supabase
+        .from("analyses")
+        .select("resume_id")
+        .eq("job_posting_id", jobPostingId)
+        .eq("user_id", userId);
+
+    if (analysesError) throw new Error(`Could not load analyses: ${analysesError.message}`);
+    const resumeIds = [...new Set((analysisRows ?? []).map((row) => row.resume_id as string))];
+
+    //3. delete the analyses first - they point at the resumes and the job posting
+    const { error: deleteAnalysesError } = await supabase
+        .from("analyses")
+        .delete()
+        .eq("job_posting_id", jobPostingId)
+        .eq("user_id", userId);
+
+    if (deleteAnalysesError) {
+        throw new Error(`Could not delete analyses: ${deleteAnalysesError.message}`);
+    }
+
+    //4. delete each resume (file + row), unless another job's analysis still uses it
+    //   (older job-seeker analyses could reuse one resume across several jobs)
+    for (const resumeId of resumeIds) {
+        const { count, error: countError } = await supabase
+            .from("analyses")
+            .select("id", { count: "exact", head: true })
+            .eq("resume_id", resumeId);
+
+        if (countError) throw new Error(`Could not check resume use: ${countError.message}`);
+        if ((count ?? 0) > 0) continue;
+
+        const resume = await getResumeForUser(resumeId, userId);
+        if (!resume) continue;
+
+        const { error: storageError } = await supabase.storage
+            .from("resumes")
+            .remove([resume.file_path]);
+        if (storageError) throw new Error(`Could not delete resume file: ${storageError.message}`);
+
+        const { error: resumeError } = await supabase
+            .from("resumes")
+            .delete()
+            .eq("id", resumeId)
+            .eq("user_id", userId);
+        if (resumeError) throw new Error(`Could not delete resume: ${resumeError.message}`);
+    }
+
+    //5. delete the job posting's file (only older postings have one) and then its row
+    if (job.file_path) {
+        await supabase.storage.from("job-postings").remove([job.file_path]);
+    }
+
+    const { error: deleteJobError } = await supabase
+        .from("job_postings")
+        .delete()
+        .eq("id", jobPostingId)
+        .eq("user_id", userId);
+
+    if (deleteJobError) throw new Error(`Could not delete job: ${deleteJobError.message}`);
+
+    return true;
+}
