@@ -141,3 +141,38 @@ export async function getAnalysesForUser(userId: string) {
     //Return the rows from Supabase.
     return data;
 }
+
+//Fetches one resume row, but only if it belongs to this user.
+//Returns null when the resume does not exist or belongs to someone else, so callers
+//can't reach another user's file by guessing an id.
+export async function getResumeForUser(resumeId: string, userId: string) {
+    const { data, error } = await supabase
+        .from("resumes")
+        .select("id, file_path")
+        .eq("id", resumeId)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+    if (error) {
+        throw new Error(`Could not fetch resume: ${error.message}`);
+    }
+
+    return data;
+}
+
+//Fetches one job posting row, but only if it belongs to this user.
+//Returns null when the posting does not exist or belongs to someone else.
+export async function getJobPostingForUser(jobPostingId: string, userId: string) {
+    const { data, error } = await supabase
+        .from("job_postings")
+        .select("id, extracted_text")
+        .eq("id", jobPostingId)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+    if (error) {
+        throw new Error(`Could not fetch job posting: ${error.message}`);
+    }
+
+    return data;
+}

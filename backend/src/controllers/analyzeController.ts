@@ -39,26 +39,45 @@
 import { Request, Response } from 'express'
 
 import getAnalysis from '../services/openaiService'
-import { fetchResumeFile, saveAnalysis } from '../services/supabaseService'
+import {
+  fetchResumeFile,
+  getJobPostingForUser,
+  getResumeForUser,
+  saveAnalysis,
+} from '../services/supabaseService'
 import { textFromPdf } from '../services/pdfService'
 
 
 // controllers are doers: receive data, do the work, send a response
 const analyzeController = async (req: Request, res: Response) => {
-  // RECEIVE - get everything the frontend sends
-  // (frontend now also sends the IDs needed for saving)
-  const { resume, jobPosting, userId, resumeId, jobPostingId } = req.body
-  // resume is a filePath string
+  // the user comes from the token authMiddleware verified, never from the body -
+  // the backend uses the service-role key, which skips Supabase's row-level security
+  const userId: string = res.locals.user.id
+
+  // RECEIVE - the frontend only sends which resume + job posting to use
+  const { resumeId, jobPostingId } = req.body ?? {}
+
+  if (typeof resumeId !== 'string' || typeof jobPostingId !== 'string' || !resumeId || !jobPostingId) {
+    return res.status(400).json({ error: "resumeId and jobPostingId are required." })
+  }
 
   try {
-    // FETCH - get the resume PDF from storage using the filePath (returns a Buffer)
-    const resumePDF = await fetchResumeFile(resume)
+    // LOOK UP - only rows this user owns; another user's ids come back as null
+    const resume = await getResumeForUser(resumeId, userId)
+    const jobPosting = await getJobPostingForUser(jobPostingId, userId)
+
+    if (!resume || !jobPosting) {
+      return res.status(404).json({ error: "Resume or job posting not found." })
+    }
+
+    // FETCH - get the resume PDF from storage using its saved filePath (returns a Buffer)
+    const resumePDF = await fetchResumeFile(resume.file_path)
 
     // EXTRACT - turn the PDF Buffer into text
     const resumeText = await textFromPdf(resumePDF)
 
-    // ANALYZE - send the text + job posting to the AI, get the analysis
-    const analysis = await getAnalysis(resumeText, jobPosting)
+    // ANALYZE - send the text + saved job posting to the AI, get the analysis
+    const analysis = await getAnalysis(resumeText, jobPosting.extracted_text)
 
     // SAVE - store the analysis in the database (so it shows in history)
     const saved = await saveAnalysis({

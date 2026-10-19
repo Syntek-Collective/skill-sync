@@ -232,12 +232,9 @@ function App() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        // send everything the backend needs: the file path, the job text,
-        // and the ids needed to save the analysis row
+        // send only which resume + job posting to use; the backend works out
+        // the user from the auth token and loads the rows itself
         body: JSON.stringify({
-          resume: resumeFilePath,
-          jobPosting: jobData.posting,
-          userId,
           resumeId,
           jobPostingId: jobData.jobPostingId,
         }),
