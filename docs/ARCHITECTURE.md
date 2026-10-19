@@ -102,10 +102,11 @@ Errors come back as `{ "error": "message for the user" }`.
 
 | Status | When |
 |---|---|
-| `400` | Missing or invalid input, a missing OpenAI key, or the key can't use the model |
+| `400` | Missing or invalid input (including broken JSON), a missing OpenAI key, or the key can't use the model |
 | `401` | Not logged in, or OpenAI rejected the key |
 | `404` | A saved resume, posting or job isn't the user's |
 | `409` | A saved job already has 10 analyzed candidates |
+| `413` | The request body is over the size limit (8 MB on `/api/analyze`, 100 KB elsewhere) |
 | `429` | OpenAI rate limit, or the key is out of credit |
 | `502` / `500` | OpenAI or the server failed |
 

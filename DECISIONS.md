@@ -146,9 +146,6 @@ The UI recommends a separate OpenAI project key with a monthly budget.
 
 ## Known issues
 
-- **`GET /api/history`:** reads `req.user`, but the auth middleware sets `res.locals.user`, so the route would fail. The frontend doesn't use it; it reads Past jobs straight from Supabase.
-- **Oversized bodies:** the error handler turns them into `500` instead of `413`.
 - **Delete job:** doesn't remove resumes that were uploaded to a saved job but never analyzed.
 - **Reloading:** a private job is lost on reload by design, so download first.
 - **The 10-resume limit:** for saved jobs it can be slightly exceeded when several requests arrive at once. For private jobs it's enforced in the browser only.
-- **Empty test:** `backend/src/services/openaiService.test.ts` has no tests yet, so Jest reports it as a failed suite.
