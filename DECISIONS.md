@@ -6,6 +6,20 @@ Each entry: **Decision**, **Why**, **Alternatives considered**, and **Status** (
 
 ---
 
+## 2026-10-19: Deploy as one Railway service; MIT license; saving off for launch
+
+**Decision:**
+- Deploy to Railway as **one service**: Express serves the API and the built React app on one URL.
+- License the code under **MIT**.
+- Launch with **"Save this job" switched off** (`VITE_ENABLE_SAVED_JOBS`, off by default) until the saved-job known issues below are fixed.
+
+**Why:**
+- One service is simpler and cheaper than two, and needs no CORS setup.
+- MIT is the common permissive choice for open source.
+- The open saved-job issues could leave stored resumes a recruiter can't see or delete. With saving off, every job is private and none of them can happen. The saved-job code stays, ready to switch back on.
+
+**Status:** decided
+
 ## 2026-10-19: Private by default; saving is opt-in per job
 
 **Decision:** Nothing is stored unless the recruiter ticks **"Save this job"** (off by default).
@@ -139,8 +153,6 @@ The UI recommends a separate OpenAI project key with a monthly budget.
 
 ## Open questions
 
-- **Hosting:** one Railway service where Express also serves the React build, or separate frontend and backend services? *Proposed:* one service, which is simpler, cheaper, and needs no CORS setup.
-- **License:** MIT was suggested; the team needs to choose.
 - **Supabase schema:** export the tables, row-level security policies and storage policies as SQL migrations, so new contributors can set up a project.
 - **Code of conduct contact:** who receives reports (see `CODE_OF_CONDUCT.md`).
 

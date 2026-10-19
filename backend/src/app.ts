@@ -3,6 +3,8 @@
 //then exports it for the server to run.
 
 import express, { Request, Response, NextFunction } from "express";
+import fs from "fs";
+import path from "path";
 import historyRouter from './routes/historyRoutes'
 import analyzeRouter from './routes/analyzeRoutes'
 
@@ -40,6 +42,25 @@ app.get("/api/test", (req: Request, res: Response) => {
 // ===== ROUTES (all routes go here, before the error handler) =====
 app.use('/api/history', historyRouter);
 app.use("/api/analyze", analyzeRouter);
+
+// ===== THE REACT APP (production) =====
+// In production (e.g. Railway) this one Express server also serves the built frontend, so the app and
+// the API share one URL (no CORS, no second service). `npm run build` in frontend/ creates
+// frontend/dist. From backend/src (dev) or backend/dist (compiled), that folder is two levels up.
+// Locally the folder usually doesn't exist (Vite serves the app on its own port), so this is skipped.
+const frontendDist = path.join(__dirname, "../../frontend/dist");
+
+if (fs.existsSync(frontendDist)) {
+  // the built JS, CSS and images
+  app.use(express.static(frontendDist));
+
+  // any other page (e.g. a refresh on a deep link) gets index.html, and React takes it from there.
+  // /api requests are excluded, so a mistyped API URL still gets a normal 404 instead of HTML.
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.method !== "GET" || req.path.startsWith("/api")) return next();
+    res.sendFile(path.join(frontendDist, "index.html"));
+  });
+}
 
 // ===== ERROR HANDLER (must be LAST - after all routes) =====
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
