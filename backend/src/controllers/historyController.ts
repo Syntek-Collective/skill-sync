@@ -40,7 +40,8 @@ import {deleteSavedJob, getAnalysesForUser} from '../services/supabaseService';
 const getHistory = async (req: Request, res: Response, next: NextFunction) => {
     try {
         // Extract userId (Ensure authMiddleware attaches it correctly)
-        const userId = (req as any).user.id;
+        //authMiddleware stores the verified user on res.locals (not on req), so read it from there
+        const userId: string = res.locals.user.id;
 
         // Fetch the data
         const analyses = await getAnalysesForUser(userId);
