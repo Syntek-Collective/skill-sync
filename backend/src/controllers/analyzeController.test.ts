@@ -1,34 +1,47 @@
-// Tests for analyzeController: auth/ownership checks and the success response.
-// All services are mocked, so nothing calls Supabase, parses a PDF or hits OpenAI.
+// Tests for the analyze controllers: auth/ownership checks, BYOK, the 10-candidate cap,
+// requirements validation, and the saved result. All services are mocked, so nothing
+// calls Supabase, parses a PDF or hits OpenAI.
 
 import { Request, Response } from "express";
 import { APIError } from "openai";
 
 jest.mock("../services/supabaseService", () => ({
+  countAnalysesForJob: jest.fn(),
   fetchResumeFile: jest.fn(),
   getResumeForUser: jest.fn(),
   getJobPostingForUser: jest.fn(),
   saveAnalysis: jest.fn(),
 }));
 jest.mock("../services/pdfService", () => ({ textFromPdf: jest.fn() }));
-jest.mock("../services/openaiService", () => ({ __esModule: true, default: jest.fn() }));
+jest.mock("../services/openaiService", () => ({
+  extractRequirements: jest.fn(),
+  matchResume: jest.fn(),
+}));
 
-import analyzeController from "./analyzeController";
+import analyzeController, { requirementsController } from "./analyzeController";
 import {
+  countAnalysesForJob,
   fetchResumeFile,
   getJobPostingForUser,
   getResumeForUser,
   saveAnalysis,
 } from "../services/supabaseService";
 import { textFromPdf } from "../services/pdfService";
-import getAnalysis from "../services/openaiService";
+import { extractRequirements, matchResume } from "../services/openaiService";
 
+const mockCount = countAnalysesForJob as jest.Mock;
 const mockGetResume = getResumeForUser as jest.Mock;
 const mockGetJobPosting = getJobPostingForUser as jest.Mock;
 const mockFetchResumeFile = fetchResumeFile as jest.Mock;
 const mockTextFromPdf = textFromPdf as jest.Mock;
-const mockGetAnalysis = getAnalysis as jest.Mock;
+const mockExtractRequirements = extractRequirements as jest.Mock;
+const mockMatchResume = matchResume as jest.Mock;
 const mockSaveAnalysis = saveAnalysis as jest.Mock;
+
+const requirements = [
+  { id: "r1", requirement: "Python", importance: "required" },
+  { id: "r2", requirement: "Docker", importance: "preferred" },
+];
 
 // Builds a fake request/response pair with the signed-in user set the way authMiddleware does.
 function setup(body: unknown, headers: Record<string, string> = { "x-openai-key": "sk-test" }) {
@@ -41,6 +54,25 @@ function setup(body: unknown, headers: Record<string, string> = { "x-openai-key"
   return { req, res };
 }
 
+// The happy path for one resume; individual tests override pieces of it.
+function mockOwnedRowsAndMatch() {
+  mockGetResume.mockResolvedValue({ id: "resume-1", file_path: "user-1/resume.pdf" });
+  mockGetJobPosting.mockResolvedValue({ id: "job-1", extracted_text: "Saved job text" });
+  mockCount.mockResolvedValue(0);
+  mockFetchResumeFile.mockResolvedValue(Buffer.from("pdf"));
+  mockTextFromPdf.mockResolvedValue("Python developer. Email jo@example.com");
+  mockMatchResume.mockResolvedValue({
+    summary: "Strong Python background.",
+    matches: [{ requirementId: "r1", status: "met", evidence: "Python developer" }],
+    strengths: ["Python"],
+    concerns: ["No Docker shown"],
+    interviewQuestions: ["Have you used Docker?"],
+  });
+  mockSaveAnalysis.mockResolvedValue({ id: "analysis-1", created_at: "2026-10-19T00:00:00Z" });
+}
+
+const validBody = { resumeId: "resume-1", jobPostingId: "job-1", requirements };
+
 beforeEach(() => {
   jest.clearAllMocks();
   jest.spyOn(console, "error").mockImplementation(() => {});
@@ -48,7 +80,29 @@ beforeEach(() => {
 
 describe("analyzeController", () => {
   it("returns 400 when resumeId or jobPostingId is missing", async () => {
-    const { req, res } = setup({ resumeId: "resume-1" });
+    const { req, res } = setup({ resumeId: "resume-1", requirements });
+
+    await analyzeController(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(mockGetResume).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when the requirements list is missing or malformed", async () => {
+    const { req, res } = setup({
+      resumeId: "resume-1",
+      jobPostingId: "job-1",
+      requirements: [{ id: "r1", requirement: "Python", importance: "essential" }],
+    });
+
+    await analyzeController(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(mockGetResume).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when the OpenAI key header is missing", async () => {
+    const { req, res } = setup(validBody, {});
 
     await analyzeController(req, res);
 
@@ -57,81 +111,88 @@ describe("analyzeController", () => {
   });
 
   it("returns 404 when the resume does not belong to the user", async () => {
+    mockOwnedRowsAndMatch();
     mockGetResume.mockResolvedValue(null);
-    mockGetJobPosting.mockResolvedValue({ id: "job-1", extracted_text: "Job text" });
-    const { req, res } = setup({ resumeId: "someone-elses-resume", jobPostingId: "job-1" });
+    const { req, res } = setup({ ...validBody, resumeId: "someone-elses-resume" });
 
     await analyzeController(req, res);
 
     expect(res.status).toHaveBeenCalledWith(404);
     expect(mockFetchResumeFile).not.toHaveBeenCalled();
-    expect(mockGetAnalysis).not.toHaveBeenCalled();
+    expect(mockMatchResume).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the job posting does not belong to the user", async () => {
-    mockGetResume.mockResolvedValue({ id: "resume-1", file_path: "user-1/resume.pdf" });
+    mockOwnedRowsAndMatch();
     mockGetJobPosting.mockResolvedValue(null);
-    const { req, res } = setup({ resumeId: "resume-1", jobPostingId: "someone-elses-job" });
+    const { req, res } = setup({ ...validBody, jobPostingId: "someone-elses-job" });
 
     await analyzeController(req, res);
 
     expect(res.status).toHaveBeenCalledWith(404);
-    expect(mockGetAnalysis).not.toHaveBeenCalled();
+    expect(mockMatchResume).not.toHaveBeenCalled();
   });
 
-  it("uses the verified user and saved rows, ignoring ids and paths in the body", async () => {
-    mockGetResume.mockResolvedValue({ id: "resume-1", file_path: "user-1/resume.pdf" });
-    mockGetJobPosting.mockResolvedValue({ id: "job-1", extracted_text: "Saved job text" });
-    mockFetchResumeFile.mockResolvedValue(Buffer.from("pdf"));
-    mockTextFromPdf.mockResolvedValue("Resume text");
-    mockGetAnalysis.mockResolvedValue('{"matchScore":80}');
-    mockSaveAnalysis.mockResolvedValue({ id: "analysis-1", created_at: "2026-10-19T00:00:00Z" });
+  it("returns 409 once the job already has 10 candidates", async () => {
+    mockOwnedRowsAndMatch();
+    mockCount.mockResolvedValue(10);
+    const { req, res } = setup(validBody);
 
-    const { req, res } = setup({
-      resumeId: "resume-1",
-      jobPostingId: "job-1",
-      userId: "attacker",
-      resume: "victim/resume.pdf",
-      jobPosting: "Injected job text",
-    });
+    await analyzeController(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(mockMatchResume).not.toHaveBeenCalled();
+  });
+
+  it("matches the redacted resume, scores in code, and saves under the verified user", async () => {
+    mockOwnedRowsAndMatch();
+    const { req, res } = setup({ ...validBody, userId: "attacker", resume: "victim/resume.pdf" });
 
     await analyzeController(req, res);
 
     expect(mockGetResume).toHaveBeenCalledWith("resume-1", "user-1");
     expect(mockGetJobPosting).toHaveBeenCalledWith("job-1", "user-1");
     expect(mockFetchResumeFile).toHaveBeenCalledWith("user-1/resume.pdf");
-    expect(mockGetAnalysis).toHaveBeenCalledWith("sk-test", "Resume text", "Saved job text");
+    expect(mockMatchResume).toHaveBeenCalledWith(
+      "sk-test",
+      requirements,
+      "Python developer. Email [email]",
+    );
+
+    // r1 (required, weight 2) met, r2 (preferred, weight 1) skipped by the AI -> not met: 2/3
+    const expectedResult = {
+      version: 2,
+      requirements,
+      summary: "Strong Python background.",
+      matches: [
+        { requirementId: "r1", status: "met", evidence: "Python developer" },
+        { requirementId: "r2", status: "not_met", evidence: "" },
+      ],
+      strengths: ["Python"],
+      concerns: ["No Docker shown"],
+      interviewQuestions: ["Have you used Docker?"],
+      score: 67,
+      band: "Partial match",
+    };
     expect(mockSaveAnalysis).toHaveBeenCalledWith({
       userId: "user-1",
       resumeId: "resume-1",
       jobPostingId: "job-1",
-      result: '{"matchScore":80}',
+      result: expectedResult,
     });
     expect(res.json).toHaveBeenCalledWith({
-      result: '{"matchScore":80}',
+      result: expectedResult,
       id: "analysis-1",
       createdAt: "2026-10-19T00:00:00Z",
     });
   });
 
-  it("returns 400 when the OpenAI key header is missing", async () => {
-    const { req, res } = setup({ resumeId: "resume-1", jobPostingId: "job-1" }, {});
-
-    await analyzeController(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(mockGetResume).not.toHaveBeenCalled();
-  });
-
   it("returns 401 with a key message when OpenAI rejects the key, without logging the error text", async () => {
-    mockGetResume.mockResolvedValue({ id: "resume-1", file_path: "user-1/resume.pdf" });
-    mockGetJobPosting.mockResolvedValue({ id: "job-1", extracted_text: "Job text" });
-    mockFetchResumeFile.mockResolvedValue(Buffer.from("pdf"));
-    mockTextFromPdf.mockResolvedValue("Resume text");
-    mockGetAnalysis.mockRejectedValue(
+    mockOwnedRowsAndMatch();
+    mockMatchResume.mockRejectedValue(
       new APIError(401, {}, "Incorrect API key provided: sk-te****test", new Headers()),
     );
-    const { req, res } = setup({ resumeId: "resume-1", jobPostingId: "job-1" });
+    const { req, res } = setup(validBody);
 
     await analyzeController(req, res);
 
@@ -142,12 +203,9 @@ describe("analyzeController", () => {
   });
 
   it("returns 429 when the key is rate limited or out of credit", async () => {
-    mockGetResume.mockResolvedValue({ id: "resume-1", file_path: "user-1/resume.pdf" });
-    mockGetJobPosting.mockResolvedValue({ id: "job-1", extracted_text: "Job text" });
-    mockFetchResumeFile.mockResolvedValue(Buffer.from("pdf"));
-    mockTextFromPdf.mockResolvedValue("Resume text");
-    mockGetAnalysis.mockRejectedValue(new APIError(429, {}, "quota", new Headers()));
-    const { req, res } = setup({ resumeId: "resume-1", jobPostingId: "job-1" });
+    mockOwnedRowsAndMatch();
+    mockMatchResume.mockRejectedValue(new APIError(429, {}, "quota", new Headers()));
+    const { req, res } = setup(validBody);
 
     await analyzeController(req, res);
 
@@ -155,12 +213,48 @@ describe("analyzeController", () => {
   });
 
   it("returns 500 when a service fails", async () => {
+    mockOwnedRowsAndMatch();
     mockGetResume.mockRejectedValue(new Error("db down"));
-    mockGetJobPosting.mockResolvedValue({ id: "job-1", extracted_text: "Job text" });
-    const { req, res } = setup({ resumeId: "resume-1", jobPostingId: "job-1" });
+    const { req, res } = setup(validBody);
 
     await analyzeController(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
+  });
+});
+
+describe("requirementsController", () => {
+  it("returns 400 without a jobPostingId or key", async () => {
+    const noId = setup({});
+    await requirementsController(noId.req, noId.res);
+    expect(noId.res.status).toHaveBeenCalledWith(400);
+
+    const noKey = setup({ jobPostingId: "job-1" }, {});
+    await requirementsController(noKey.req, noKey.res);
+    expect(noKey.res.status).toHaveBeenCalledWith(400);
+
+    expect(mockExtractRequirements).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 for a job posting the user doesn't own", async () => {
+    mockGetJobPosting.mockResolvedValue(null);
+    const { req, res } = setup({ jobPostingId: "someone-elses-job" });
+
+    await requirementsController(req, res);
+
+    expect(mockGetJobPosting).toHaveBeenCalledWith("someone-elses-job", "user-1");
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(mockExtractRequirements).not.toHaveBeenCalled();
+  });
+
+  it("extracts requirements from the saved posting text", async () => {
+    mockGetJobPosting.mockResolvedValue({ id: "job-1", extracted_text: "Saved job text" });
+    mockExtractRequirements.mockResolvedValue(requirements);
+    const { req, res } = setup({ jobPostingId: "job-1" });
+
+    await requirementsController(req, res);
+
+    expect(mockExtractRequirements).toHaveBeenCalledWith("sk-test", "Saved job text");
+    expect(res.json).toHaveBeenCalledWith({ requirements });
   });
 });

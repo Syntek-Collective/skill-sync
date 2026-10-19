@@ -176,3 +176,19 @@ export async function getJobPostingForUser(jobPostingId: string, userId: string)
 
     return data;
 }
+
+//Counts how many candidates have already been analyzed for one of this user's job postings.
+//Used to cap a job at 10 resumes.
+export async function countAnalysesForJob(jobPostingId: string, userId: string): Promise<number> {
+    const { count, error } = await supabase
+        .from("analyses")
+        .select("id", { count: "exact", head: true })
+        .eq("job_posting_id", jobPostingId)
+        .eq("user_id", userId);
+
+    if (error) {
+        throw new Error(`Could not count analyses: ${error.message}`);
+    }
+
+    return count ?? 0;
+}
