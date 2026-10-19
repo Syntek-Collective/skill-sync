@@ -34,7 +34,7 @@
 
 //import express in order to create the router
 import express from 'express'
-import getHistory from '../controllers/historyController'
+import getHistory, { deleteJobController } from '../controllers/historyController'
 import { authMiddleware } from '../middleware/authMiddleware';
 
 //create the router 
@@ -42,6 +42,9 @@ const historyRouter = express.Router()
 
 // Define the route: We use GET because we are retrieving data
 historyRouter.get('/', authMiddleware, getHistory);
+
+// DELETE removes one saved job and everything saved with it (results + resume files)
+historyRouter.delete('/:jobPostingId', authMiddleware, deleteJobController);
 
 
 

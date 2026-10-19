@@ -1,0 +1,10 @@
+{
+  // Production build: compiles src/ to dist/ without tests or the eval scripts.
+  // The editor and ts-jest keep using tsconfig.json, which still covers them.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/eval"]
+}

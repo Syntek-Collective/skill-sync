@@ -35,12 +35,13 @@
 */
 
 import {Request, Response, NextFunction} from 'express';
-import {getAnalysesForUser} from '../services/supabaseService';
+import {deleteSavedJob, getAnalysesForUser} from '../services/supabaseService';
 
 const getHistory = async (req: Request, res: Response, next: NextFunction) => {
     try {
         // Extract userId (Ensure authMiddleware attaches it correctly)
-        const userId = (req as any).user.id;
+        //authMiddleware stores the verified user on res.locals (not on req), so read it from there
+        const userId: string = res.locals.user.id;
 
         // Fetch the data
         const analyses = await getAnalysesForUser(userId);
@@ -55,3 +56,28 @@ const getHistory = async (req: Request, res: Response, next: NextFunction) => {
 }
 
 export default getHistory;
+
+//DELETE /api/history/:jobPostingId
+//Deletes one of the user's saved jobs and everything saved with it (results + resume files).
+//Only the signed-in user's own jobs can be deleted; anything else is a 404.
+export const deleteJobController = async (req: Request, res: Response) => {
+    //the user comes from the token authMiddleware verified
+    const userId: string = res.locals.user.id;
+    const { jobPostingId } = req.params;
+
+    if (typeof jobPostingId !== 'string' || !jobPostingId) {
+        return res.status(400).json({ error: "jobPostingId is required." });
+    }
+
+    try {
+        const deleted = await deleteSavedJob(jobPostingId, userId);
+        if (!deleted) {
+            return res.status(404).json({ error: "Job not found." });
+        }
+        //204 = done, nothing to send back
+        res.status(204).end();
+    } catch (error) {
+        console.error("Delete job failed:", error);
+        res.status(500).json({ error: "Couldn't delete this job. Please try again." });
+    }
+}

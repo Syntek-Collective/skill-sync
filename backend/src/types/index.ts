@@ -18,3 +18,44 @@
     - keeping these shapes matched to what the frontend expects (and what gets saved in the db)
 
 */
+
+// ===== SKILL MATCH (recruiter flow): one job posting, many resumes =====
+
+//how much a requirement matters for the role
+export type RequirementImportance = "required" | "preferred";
+
+//one requirement pulled out of the job posting once, then reused for every resume
+//so all candidates for a job are scored against the same list
+export type Requirement = {
+  id: string;
+  requirement: string;
+  importance: RequirementImportance;
+};
+
+export type MatchStatus = "met" | "partial" | "not_met";
+
+//how one resume lines up with one requirement, with a short quote or paraphrase as evidence
+export type RequirementMatch = {
+  requirementId: string;
+  status: MatchStatus;
+  evidence: string;
+};
+
+//what the AI returns for one resume
+export type CandidateMatch = {
+  summary: string;
+  matches: RequirementMatch[];
+  strengths: string[];
+  concerns: string[];
+  interviewQuestions: string[];
+};
+
+export type MatchBand = "Strong match" | "Partial match" | "Weak match";
+
+//what gets saved in analyses.result for each candidate (version 2 = recruiter format)
+export type CandidateResult = CandidateMatch & {
+  version: 2;
+  requirements: Requirement[];
+  score: number;
+  band: MatchBand;
+};

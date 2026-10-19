@@ -19,13 +19,16 @@
 
 //import express in order to create the router
 import express from 'express'
-import analyzeController from '../controllers/analyzeController'
+import analyzeController, { requirementsController } from '../controllers/analyzeController'
 import { authMiddleware } from '../middleware/authMiddleware'
 
 //create the router 
 const analyzeRouter = express.Router()
 
-//when a POST request comes to this route, send it to the analyzeController
+//step 1 (once per job): extract the job's requirement list
+analyzeRouter.post('/requirements', authMiddleware, requirementsController)
+
+//step 2 (once per resume): match one resume against that list
 analyzeRouter.post('/', authMiddleware, analyzeController)
 
 

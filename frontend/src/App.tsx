@@ -1,147 +1,156 @@
 /*
 
-  PRIOR 2 SETUP
+  APP - the recruiter skill match
 
-  What is this component's job?
-  To display the AI's gap analysis on screen after the user submits a job posting
-  (with a resume already uploaded)
+  PRIVATE BY DEFAULT: unless the recruiter ticks "Save this job", nothing is stored - the job text
+  and resume PDFs stay in this page and are sent with each analysis request. Results must be
+  downloaded (PDF / CSV) before leaving; the page warns if they haven't been. Saved jobs work the
+  old way: stored in Supabase and listed in Past jobs, where they can be deleted.
 
+  Flow for a signed-in recruiter:
+    1. add their OpenAI key (BYOK - see ApiKeyPanel)
+    2. add the job they're hiring for (JobPostingModal - private, or saved if they opt in)
+    3. add up to 10 resume PDFs (CandidateUploadModal) - uploading only adds them to the list
+    4. click "Analyze N resumes" (handleAnalyze): the backend pulls the job's requirements ONCE, then this page
+       analyzes each resume against that same list, 3 at a time, so a big batch never hits
+       a request timeout and one bad resume doesn't stop the rest
+    5. see the candidates ranked (RankedResults) and download them; saved jobs are in HistoryModal
 
-  What does this component need to receive?
-  This component receives the LLM response (text) from the main page (App.tsx)
-
-
-  What does it need to remember?
-  Nothing - all state is handled on the main page (App.tsx), it is just passed down as props to display
-
-
-  What does it show?
-  The LLM response & maybe a heading/label - shows nothing/place holder when there
-  is no result yet
-
-
-  What does it send back?
-  Nothing/no information is sent back to the parent component (App.tsx) - this component just receives and
-  displays, so theres no need to track state or send anything back to the main page
-
+  State lives here and is passed down; the components mostly display and report back.
 
 */
 
-/*
-
-  SETUP
-
-  Components describe what to render and the functions describe how the component behaves and the return statement describes
-  the UI React renders
-
-
-
-  STATE
-  What does the app need to track over time (and change the UI based on)?
-
-  Since this application relies on conditional rendering we need state to track each display change
-  1. Is the user logged in or not
-  1.5 What is the user's name?
-  2. Did the user click/navigate resume input popup (modal)
-  3. Track the actual resume input box
-  4. Did the user click/navigate to the job listing modal
-  5. Did the user click/navigate to the history modal
-  6. Was an analysis performed and therefore need to be displayed
-  7. Every time the user submits a job query we need to save this for the history modal
-
-
-
-  HELPER FUNCTIONS
-  Functions inside React components are typically used to handle events, update state, and encapsulate logic
-  because they are defined inside the component they have access to the components state, props, and local variables through closures
-
-  1. A function to open each modal
-  2. A function to close each modal
-  3. A function to handle saving the user's resume
-  4. A function to handle analyzing (running the analysis & adding it to history)
-  5. A function to handle login (remember we are using supabase 4 authentication)
-
-
-
-  JSX RETURN
-  JSX is HTML-looking syntax that describes what shows on screen
-  We drop JavaScript into it using curly braces { }
-
-  Due to the conditional rendering nature of this application all of the logic lives with the logged-in/logged-out condition
-  Each side of a condition must be ONE element (so we wrap groups in a <div>)
-
-
-  Structure:
-
-  <main>  (the overall page wrapper)
-
-        -- ALWAYS SHOWS --
-        The title (Skill Sync) - sits outside any condition, so it always appears
-
-        -- MASTER SWITCH: isLoggedIn ? (logged in) : (logged out) --
-
-        IF logged in:
-          <div>
-            - personalized welcome message ({userName}, leave nothing to chance.)
-            - buttons: Upload Resume / Upload Job Posting / Analysis History (each opens its modal)
-            - AnalysisResult component (shows analysisResponse)
-            - the modals, each with the && pattern (show only IF their state is true):
-                IF isResumeModalOpen  -> ResumeModal (gets isOpen, onClose, onSave)
-                IF isJobModalOpen     -> JobPostingModal (gets isOpen, onClose, onAnalyze)
-                IF isHistoryModalOpen -> HistoryModal (gets isOpen, onClose, historyArr)
-          </div>
-
-        OTHERWISE (logged out):
-          <div>
-            - tagline (Align your skills. Accelerate your career.)
-            - two buttons: Login / Signup
-                -> each sets authMode (which view to open to) AND opens the modal
-            - AuthModal with the && pattern (shows only IF isAuthModalOpen):
-                gets isOpen, onClose, onAuthSuccess, authMode, setAuthMode
-                (handles login AND signup internally; can toggle its own view via setAuthMode)
-          </div>
-
-      </main>
-
-
-    Auth flow notes:
-      - authMode ('login' | 'signup') = which view the modal opens to
-      - Login/Signup buttons set authMode + open the modal
-      - On success, the modal calls onAuthSuccess(user) -> handleAuthSuccess
-        which sets isLoggedIn true, stores the name, and closes the modal
-      - The modal can switch its own view (login <-> signup) via setAuthMode
-*/
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Button from "./components/ui/Button";
-import Loading from "./components/ui/Loading";
 import { supabase } from "./supabaseClient";
 
-import AnalysisResult from "./components/AnalysisResult";
-import ResumeModal from "./components/resumeModal";
+import RankedResults from "./components/RankedResults";
+import CandidateUploadModal from "./components/CandidateUploadModal";
 import JobPostingModal from "./components/jobPostingModal";
 import AuthModal from "./components/AuthModal";
 import HistoryModal from "./components/HistoryModal";
+import ApiKeyPanel from "./components/ApiKeyPanel";
+import PrintReport from "./components/PrintReport";
+import {
+  ApiError,
+  analyzeCandidate,
+  deleteSavedJob,
+  fetchRequirements,
+  fileToBase64,
+  runWithConcurrency,
+} from "./matchApi";
+import { downloadCsv, printResults, rankCandidates } from "./exportResults";
+import {
+  isCandidateResult,
+  type Candidate,
+  type Job,
+  type JobHistory,
+  type Requirement,
+} from "./types";
 import skillSyncLogo from "./assets/skillsync-transparent.png";
+
+const MAX_CANDIDATES = 10;
+const PARALLEL_ANALYSES = 3;
+
+// BYOK: the user's OpenAI key is kept in sessionStorage so it's gone when the tab closes.
+// storage can be blocked (private mode, strict settings), so failures just mean "no saved key"
+const OPENAI_KEY_STORAGE = "skillsync.openaiKey";
+
+function readStoredKey() {
+  try {
+    return sessionStorage.getItem(OPENAI_KEY_STORAGE) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function writeStoredKey(key: string) {
+  try {
+    if (key) sessionStorage.setItem(OPENAI_KEY_STORAGE, key);
+    else sessionStorage.removeItem(OPENAI_KEY_STORAGE);
+  } catch {
+    // key still works for this page load, it just won't survive a refresh
+  }
+}
+
+// one saved analysis, joined to its job title and resume file name
+type AnalysisRow = {
+  id: string | number;
+  job_posting_id: string;
+  result: unknown;
+  created_at: string;
+  job_postings: { job_title: string | null } | null;
+  resumes: { file_name: string | null } | null;
+};
+
+// Loads the user's past skill matches, grouped by job (newest job first).
+// Older job-seeker analyses are in a different format and are skipped.
+async function fetchJobHistory(userId: string): Promise<JobHistory[]> {
+  const { data, error } = await supabase
+    .from("analyses")
+    .select("id, job_posting_id, result, created_at, job_postings(job_title), resumes(file_name)")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error || !data) {
+    console.error("Could not load history:", error);
+    return [];
+  }
+
+  const jobs = new Map<string, JobHistory>();
+  for (const row of data as unknown as AnalysisRow[]) {
+    if (!isCandidateResult(row.result)) continue;
+
+    let job = jobs.get(row.job_posting_id);
+    if (!job) {
+      // rows are newest first, so the first row seen for a job is its latest
+      job = {
+        jobPostingId: row.job_posting_id,
+        jobTitle: row.job_postings?.job_title || "Untitled job",
+        lastAnalyzedAt: row.created_at,
+        candidates: [],
+      };
+      jobs.set(row.job_posting_id, job);
+    }
+
+    job.candidates.push({
+      analysisId: String(row.id),
+      fileName: row.resumes?.file_name || "Resume",
+      result: row.result,
+    });
+  }
+
+  return [...jobs.values()];
+}
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [userName, setUserName] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
-  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
-  const [resumeFilePath, setResumeFilePath] = useState<string | null>(null);
-  const [resumeId, setResumeId] = useState<string | null>(null);
+  const [openaiKey, setOpenaiKey] = useState(readStoredKey);
+
+  // the current job (private or saved - see Job in types.ts) and its candidates
+  const [job, setJob] = useState<Job | null>(null);
+  const [requirements, setRequirements] = useState<Requirement[] | null>(null);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [isRunning, setIsRunning] = useState(false);
+  // the resumes in the current "Analyze" click, so progress reads "2 of 3" for this batch only
+  const [runningIds, setRunningIds] = useState<string[]>([]);
+  const [runError, setRunError] = useState("");
+  // Each Analyze click gets a run number. Resetting the job (Start a new job, Logout, deleting the
+  // job) bumps the number, so a run still finishing in the background can tell it's outdated and
+  // stops touching state - otherwise its late answers could leak into the next job.
+  const runIdRef = useRef(0);
+  // has the recruiter downloaded the latest results? Private jobs warn before leaving if not.
+  // Reset to false whenever a new analysis starts.
+  const [hasDownloaded, setHasDownloaded] = useState(false);
+
   const [isJobModalOpen, setIsJobModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-  const [analysisResponse, setAnalysisResponse] = useState<string>("");
-  const [analysisError, setAnalysisError] = useState("");
-  const [resumeUploadMessage, setResumeUploadMessage] = useState("");
-  const [historyArray, setHistoryArray] = useState<
-    { id: string; jobListing: string; result: string; createdAt: string }[]
-  >([]);
+  const [jobHistory, setJobHistory] = useState<JobHistory[]>([]);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -158,61 +167,86 @@ function App() {
         setIsLoggedIn(true);
         setUserName(username || user.email || "");
         setUserId(user.id);
-
-        // LOAD THE MOST RECENT RESUME so it persists across refreshes
-        const resumeResponse = await supabase
-          .from("resumes")
-          .select("id, file_path")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (resumeResponse.data) {
-          setResumeFilePath(resumeResponse.data.file_path);
-          setResumeId(resumeResponse.data.id);
-          setResumeUploadMessage("Using your most recent resume ✓");
-        }
-
-        // LOAD PAST ANALYSES (history) - join to job_postings to get the real title
-        const analysesResponse = await supabase
-          .from("analyses")
-          .select("id, result, created_at, job_postings(job_title)")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
-
-        if (analysesResponse.data) {
-          const loadedHistory = analysesResponse.data.map((row: any) => ({
-            id: String(row.id),
-            jobListing: row.job_postings?.job_title || "Untitled job",
-            result:
-              typeof row.result === "string"
-                ? row.result
-                : JSON.stringify(row.result),
-            createdAt: String(row.created_at),
-          }));
-          setHistoryArray(loadedHistory);
-        }
+        setJobHistory(await fetchJobHistory(user.id));
       }
     };
     checkSession();
   }, []);
 
-  // ===== REAL ANALYZE FUNCTION - calls our backend =====
-  // receives the job data (incl. jobPostingId) from the JobPostingModal
-  const handleAnalyze = async (jobData: {
-    title: string;
-    posting: string;
-    jobPostingId: string;
-  }) => {
-    // guard: we need a resume uploaded (filePath + id) and a logged-in user
-    if (!resumeFilePath || !resumeId || !userId) {
-      console.error("Missing resume, resume id, or user id");
+  // candidates that still need analyzing (new ones, or ones that failed and can be retried)
+  const candidatesToRun = candidates.filter(
+    (candidate) => candidate.status === "pending" || candidate.status === "error",
+  );
+
+  // progress text for the Analyze button while a batch runs.
+  // requirements is null until the job's requirement list comes back (first click only)
+  const finishedInBatch = candidates.filter(
+    (candidate) =>
+      runningIds.includes(candidate.resumeId) &&
+      (candidate.status === "done" || candidate.status === "error"),
+  ).length;
+  const progressText = requirements
+    ? `Analyzing ${finishedInBatch} of ${runningIds.length}...`
+    : "Reading the job's requirements...";
+
+  // finished candidates, best first - used by the downloads and the print layout
+  const rankedResults = rankCandidates(candidates);
+
+  // true when leaving now would lose results: a private job with results not yet downloaded
+  const hasUnsavedResults =
+    job !== null && !job.saved && rankedResults.length > 0 && !hasDownloaded;
+
+  // Ask the browser to show its "Leave site? Changes may not be saved" prompt on reload/close
+  // while there are results that would be lost. (Browsers show their own wording, not ours.)
+  useEffect(() => {
+    if (!hasUnsavedResults) return;
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [hasUnsavedResults]);
+
+  // Same idea for in-app actions that clear the job (Start a new job, Logout).
+  // Returns true if it's fine to continue.
+  const confirmDiscardResults = () =>
+    !hasUnsavedResults ||
+    window.confirm(
+      "These results aren't saved. If you continue, they'll be gone. Download them first?\n\nPress OK to continue without downloading, or Cancel to go back.",
+    );
+
+  const updateCandidate = (resumeId: string, changes: Partial<Candidate>) => {
+    setCandidates((current) =>
+      current.map((candidate) =>
+        candidate.resumeId === resumeId ? { ...candidate, ...changes } : candidate,
+      ),
+    );
+  };
+
+  // ===== RUN THE SKILL MATCH =====
+  // Called by the "Analyze N resumes" button. Adding resumes never starts an analysis on its own,
+  // so the recruiter can keep adding (or removing) resumes until the list is complete.
+  // It analyzes everything not done yet: new resumes plus any that failed last time.
+  const handleAnalyze = async () => {
+    // snapshot the list now; candidates added while this runs wait for the next click
+    const toRun = candidatesToRun;
+    const key = openaiKey;
+    if (!job || toRun.length === 0) return;
+    if (!key) {
+      setRunError("Add your OpenAI key above to analyze.");
       return;
     }
 
-    setIsLoading(true);
-    setAnalysisError("");
+    // claim a new run number; isCurrentRun() turns false if the job is reset mid-run
+    runIdRef.current += 1;
+    const runId = runIdRef.current;
+    const isCurrentRun = () => runIdRef.current === runId;
+
+    setIsRunning(true);
+    setRunningIds(toRun.map((candidate) => candidate.resumeId));
+    setRunError("");
+    // new results are coming, so any earlier download no longer covers everything
+    setHasDownloaded(false);
 
     try {
       // get the current session so we can send the auth token the backend expects
@@ -221,65 +255,175 @@ function App() {
       } = await supabase.auth.getSession();
 
       if (!session?.access_token) {
-        setAnalysisError("Please log in again before running an analysis.");
-        setIsLoading(false);
+        setRunError("Please log in again before running the skill match.");
         return;
       }
+      const accessToken = session.access_token;
 
-      const response = await fetch("http://localhost:3000/api/analyze", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
+      // the requirement list is extracted once per job and reused, so every
+      // candidate (including ones added later) is scored on the same list.
+      // private jobs send the posting text; saved jobs send their stored id
+      const jobRequirements =
+        requirements ??
+        (await fetchRequirements(
+          accessToken,
+          key,
+          job.saved && job.id ? { jobPostingId: job.id } : { jobText: job.text },
+        ));
+      // the job was reset while we waited - don't hand this job's requirements to the next one
+      if (!isCurrentRun()) return;
+      setRequirements(jobRequirements);
+
+      // a rejected key, an empty balance, or a full job will fail every remaining
+      // resume the same way, so stop starting new ones
+      let stopBatch = false;
+
+      await runWithConcurrency(
+        toRun,
+        PARALLEL_ANALYSES,
+        async (candidate) => {
+          if (!isCurrentRun()) return;
+          updateCandidate(candidate.resumeId, { status: "running" });
+          try {
+            // private jobs send the PDF itself (read in memory on the server, never stored);
+            // saved jobs send the ids of the stored resume and job posting
+            const result =
+              job.saved && job.id
+                ? await analyzeCandidate(accessToken, key, {
+                    resumeId: candidate.resumeId,
+                    jobPostingId: job.id,
+                    requirements: jobRequirements,
+                  })
+                : await analyzeCandidate(accessToken, key, {
+                    resumePdf: await fileToBase64(candidate.file as File),
+                    requirements: jobRequirements,
+                  });
+            if (!isCurrentRun()) return;
+            updateCandidate(candidate.resumeId, { status: "done", result });
+          } catch (error) {
+            const message =
+              error instanceof ApiError
+                ? error.message
+                : "Something went wrong. Please try again.";
+            if (!isCurrentRun()) return;
+            updateCandidate(candidate.resumeId, { status: "error", error: message });
+
+            if (error instanceof ApiError && [401, 409, 429].includes(error.status)) {
+              stopBatch = true;
+              setRunError(message);
+            }
+          }
         },
-        // send everything the backend needs: the file path, the job text,
-        // and the ids needed to save the analysis row
-        body: JSON.stringify({
-          resume: resumeFilePath,
-          jobPosting: jobData.posting,
-          userId,
-          resumeId,
-          jobPostingId: jobData.jobPostingId,
-        }),
-      });
+        // also stop starting new resumes once the job has been reset
+        () => stopBatch || !isCurrentRun(),
+      );
 
-      if (!response.ok) {
-        throw new Error("Analysis request failed");
-      }
-
-      const data = await response.json();
-
-      // the analysis comes back from a jsonb column, so data.result is an OBJECT.
-      // we stringify it for our state/history (which store it as a string),
-      // and AnalysisResult parses it back when displaying.
-      const resultString =
-        typeof data.result === "string"
-          ? data.result
-          : JSON.stringify(data.result);
-
-      JSON.parse(resultString);
-
-      // store the current result so AnalysisResult shows it
-      setAnalysisResponse(resultString);
-
-      // add this analysis to history, keeping past entries
-      setHistoryArray([
-        ...historyArray,
-        {
-          id: String(data.id),
-          jobListing: jobData.title,
-          result: resultString,
-          createdAt: String(data.createdAt),
-        },
-      ]);
+      if (!isCurrentRun()) return;
+      // only saved jobs appear in Past jobs, so only they need a refresh
+      if (job.saved && userId) setJobHistory(await fetchJobHistory(userId));
     } catch (error) {
-      console.error("Analyze failed:", error);
-      setAnalysisError(
-        "Something went wrong while generating your analysis. Please try again.",
+      // only the requirements step reaches here; per-resume errors are handled above
+      console.error("Skill match failed:", error);
+      if (!isCurrentRun()) return;
+      setRunError(
+        error instanceof ApiError
+          ? error.message
+          : "Couldn't read the job's requirements. Please try again.",
       );
     } finally {
-      setIsLoading(false);
+      // a reset already cleared isRunning; only the current run should change it
+      if (isCurrentRun()) setIsRunning(false);
     }
+  };
+
+  // removes a resume that hasn't been analyzed yet, e.g. one added by mistake.
+  // private jobs only need to drop it from the list; saved jobs also delete the file + row
+  const handleRemoveCandidate = async (candidate: Candidate) => {
+    setRunError("");
+
+    if (!job?.saved || !candidate.filePath) {
+      setCandidates((current) =>
+        current.filter((item) => item.resumeId !== candidate.resumeId),
+      );
+      return;
+    }
+
+    // delete the file first, and stop if that fails: the row is the only record of where the
+    // file is, so it has to stay until the file is really gone (then Remove can be retried)
+    const { error: storageError } = await supabase.storage
+      .from("resumes")
+      .remove([candidate.filePath]);
+    if (storageError) {
+      console.error("Could not remove resume file:", storageError);
+      setRunError(`Couldn't remove ${candidate.fileName}. Please try again.`);
+      return;
+    }
+
+    const { error: rowError } = await supabase
+      .from("resumes")
+      .delete()
+      .eq("id", candidate.resumeId);
+    if (rowError) {
+      console.error("Could not remove resume row:", rowError);
+      setRunError(`Couldn't remove ${candidate.fileName}. Please try again.`);
+      return;
+    }
+
+    setCandidates((current) =>
+      current.filter((item) => item.resumeId !== candidate.resumeId),
+    );
+  };
+
+  const handleStartNewJob = () => {
+    if (!confirmDiscardResults()) return;
+    resetJob();
+  };
+
+  // clears the current job without asking (used after the recruiter has confirmed)
+  const resetJob = () => {
+    // makes any analysis still running for this job outdated (see runIdRef)
+    runIdRef.current += 1;
+    setIsRunning(false);
+    setRunningIds([]);
+    setJob(null);
+    setRequirements(null);
+    setCandidates([]);
+    setRunError("");
+    setHasDownloaded(false);
+  };
+
+  // ===== DOWNLOADS =====
+  // a download marks the results as saved by the recruiter, which turns off the "leave page" warning
+  const handleDownloadCsv = () => {
+    if (!job) return;
+    downloadCsv(job.title, rankedResults);
+    setHasDownloaded(true);
+  };
+
+  // The browser can't tell us whether the print dialog saved a PDF or was cancelled, so for
+  // private jobs we ask. Only "yes" turns off the warning; otherwise results stay protected.
+  const handleDownloadPdf = () => {
+    if (!job) return;
+    printResults(job.title);
+    if (job.saved || window.confirm("Did you save the PDF? Press OK if you did, or Cancel if not.")) {
+      setHasDownloaded(true);
+    }
+  };
+
+  // ===== DELETE A SAVED JOB (Past jobs) =====
+  // the backend deletes the job's results, resume files and posting; then the list reloads.
+  // errors are thrown so HistoryModal can show them
+  const handleDeleteJob = async (jobPostingId: string) => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error("Not logged in");
+
+    await deleteSavedJob(session.access_token, jobPostingId);
+
+    // if the deleted job is the one on screen, clear it too
+    if (job?.id === jobPostingId) resetJob();
+    if (userId) setJobHistory(await fetchJobHistory(userId));
   };
 
   // ===== AUTH SUCCESS - called when login/signup succeeds =====
@@ -287,174 +431,193 @@ function App() {
     setIsLoggedIn(true);
     setUserName(user);
     setIsAuthModalOpen(false);
-    // refresh the userId after auth
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) setUserId(data.user.id);
+    // refresh the userId and history after auth
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (data.user) {
+        setUserId(data.user.id);
+        setJobHistory(await fetchJobHistory(data.user.id));
+      }
     });
   };
 
+  const handleSaveKey = (key: string) => {
+    setOpenaiKey(key);
+    writeStoredKey(key);
+    setRunError("");
+  };
+
+  const handleForgetKey = () => {
+    setOpenaiKey("");
+    writeStoredKey("");
+  };
+
   const handleLogout = async () => {
+    if (!confirmDiscardResults()) return;
     await supabase.auth.signOut();
+    // don't leave a key behind for whoever uses this browser next
+    handleForgetKey();
+    resetJob();
+    setJobHistory([]);
     setIsLoggedIn(false);
     setUserName("");
     setUserId(null);
-    setResumeFilePath(null);
-    setResumeId(null);
   };
 
   return (
-    <main
-      className={`relative min-h-screen flex flex-col items-center text-center px-6 ${
-        isLoggedIn ? "pt-10 pb-16" : "pt-52 pb-16"
-      }`}
-    >
-      {isLoggedIn && (
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="absolute right-6 top-6 rounded-full border border-[#c8d0c6] bg-white/85 px-5 py-2 text-xs font-medium text-[#003d06] shadow-[0_8px_18px_rgba(0,61,6,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#eef8ec] hover:shadow-[0_12px_24px_rgba(0,61,6,0.3)]"
-        >
-          Logout
-        </button>
-      )}
+    <>
+      {/* the whole app is hidden when printing; only PrintReport (below) prints */}
+      <main
+        className={`relative min-h-screen flex flex-col items-center text-center px-6 print:hidden ${
+          isLoggedIn ? "pt-10 pb-16" : "pt-52 pb-16"
+        }`}
+      >
+        {isLoggedIn && (
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="absolute right-6 top-6 rounded-full border border-[#c8d0c6] bg-white/85 px-5 py-2 text-xs font-medium text-[#003d06] shadow-[0_8px_18px_rgba(0,61,6,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#eef8ec] hover:shadow-[0_12px_24px_rgba(0,61,6,0.3)]"
+          >
+            Logout
+          </button>
+        )}
 
-      <img
-        src={skillSyncLogo}
-        alt="Skill Sync logo"
-        className="h-20 w-20 mb-1"
-      />
-      <h1 className="text-4xl font-bold uppercase">Skill Sync</h1>
+        <img
+          src={skillSyncLogo}
+          alt="Skill Sync logo"
+          className="h-20 w-20 mb-1"
+        />
+        <h1 className="text-4xl font-bold uppercase">Skill Sync</h1>
 
-      {isLoggedIn ? (
-        <div className="w-full max-w-2xl">
-          <p className="mt-2 text-sm text-[#235c2a]">
-            {userName}, leave nothing to chance.
-          </p>
-
-          <div className="mt-10 flex flex-wrap justify-center gap-6">
-            <Button onClick={() => setIsResumeModalOpen(true)}>
-              Upload Resume
-            </Button>
-            <Button
-              onClick={() => setIsJobModalOpen(true)}
-              disabled={!resumeFilePath}
-            >
-              Upload Job Posting
-            </Button>
-          </div>
-
-          {resumeUploadMessage && (
-            <p className="mt-4 text-sm font-semibold text-[#3f7f52]">
-              {resumeUploadMessage}
+        {isLoggedIn ? (
+          <div className="flex w-full max-w-3xl flex-col items-center">
+            <p className="mt-2 text-sm text-[#235c2a]">
+              {userName}, match every resume to the role.
             </p>
-          )}
 
-          {isLoading ? (
-            <section className="mt-10 flex min-h-48 w-full max-w-3xl items-center justify-center rounded-lg border border-green-900/20 bg-white/80 p-6 shadow-md">
-              <Loading />
-            </section>
-          ) : (
-            // parse the stringified result into an object before passing it down
-            // (or pass null if there's no analysis yet - the component handles the empty state)
-            <AnalysisResult
-              parsedResponse={(() => {
-                if (!analysisResponse) return null;
-                try {
-                  return JSON.parse(analysisResponse);
-                } catch {
-                  console.error("Could not parse analysis:", analysisResponse);
-                  return null;
-                }
-              })()}
+            <ApiKeyPanel
+              apiKey={openaiKey}
+              onSave={handleSaveKey}
+              onForget={handleForgetKey}
             />
-          )}
 
-          {analysisError && (
-            <p className="mt-4 text-sm font-semibold text-red-700">
-              {analysisError}
+            {!job ? (
+              <div className="mt-10 flex flex-wrap justify-center gap-6">
+                <Button variant="primary" onClick={() => setIsJobModalOpen(true)}>
+                  Add the job
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="mt-10 flex flex-wrap justify-center gap-4">
+                  <Button
+                    variant={candidates.length === 0 ? "primary" : "secondary"}
+                    onClick={() => setIsUploadModalOpen(true)}
+                    disabled={isRunning || candidates.length >= MAX_CANDIDATES}
+                  >
+                    Add resumes ({candidates.length}/{MAX_CANDIDATES})
+                  </Button>
+                  <Button onClick={handleStartNewJob} disabled={isRunning}>
+                    Start a new job
+                  </Button>
+                </div>
+
+                <RankedResults
+                  jobTitle={job.title}
+                  candidates={candidates}
+                  onRemove={handleRemoveCandidate}
+                  isRunning={isRunning}
+                  onAnalyze={handleAnalyze}
+                  toAnalyzeCount={candidatesToRun.length}
+                  hasKey={Boolean(openaiKey)}
+                  progressText={progressText}
+                  isSaved={job.saved}
+                  onDownloadCsv={handleDownloadCsv}
+                  onDownloadPdf={handleDownloadPdf}
+                />
+              </>
+            )}
+
+            {runError && (
+              <p className="mt-4 text-sm font-semibold text-red-700">{runError}</p>
+            )}
+
+            {jobHistory.length > 0 && (
+              <div className="mt-6">
+                <Button onClick={() => setIsHistoryModalOpen(true)}>Past jobs</Button>
+              </div>
+            )}
+
+            {/* Modals */}
+            {isJobModalOpen && (
+              <JobPostingModal
+                isOpen={isJobModalOpen}
+                onClose={() => setIsJobModalOpen(false)}
+                onSave={(newJob) => setJob(newJob)}
+              />
+            )}
+
+            {isUploadModalOpen && (
+              <CandidateUploadModal
+                isOpen={isUploadModalOpen}
+                onClose={() => setIsUploadModalOpen(false)}
+                remainingSlots={MAX_CANDIDATES - candidates.length}
+                saveToAccount={job?.saved ?? false}
+                // uploading only adds resumes to the list; the Analyze button starts the analysis
+                onUploaded={(newCandidates) =>
+                  setCandidates((current) => [...current, ...newCandidates])
+                }
+              />
+            )}
+
+            {isHistoryModalOpen && (
+              <HistoryModal
+                isOpen={isHistoryModalOpen}
+                onClose={() => setIsHistoryModalOpen(false)}
+                jobHistory={jobHistory}
+                onDeleteJob={handleDeleteJob}
+              />
+            )}
+          </div>
+        ) : (
+          <div className="flex w-full flex-col items-center">
+            <p className="mt-3 text-xl font-semibold">
+              Match resumes to the role. Review with evidence.
             </p>
-          )}
-
-          {historyArray.length > 0 && (
-            <div className="mt-6">
-              <Button onClick={() => setIsHistoryModalOpen(true)}>
-                Analysis History
+            <div className="mt-10 flex w-full justify-center gap-12">
+              <Button
+                onClick={() => {
+                  setAuthMode("login");
+                  setIsAuthModalOpen(true);
+                }}
+              >
+                Login
+              </Button>
+              <Button
+                onClick={() => {
+                  setAuthMode("signup");
+                  setIsAuthModalOpen(true);
+                }}
+              >
+                Signup
               </Button>
             </div>
-          )}
 
-          {/* Modals */}
-          {isResumeModalOpen && (
-            <ResumeModal
-              isOpen={isResumeModalOpen}
-              onClose={() => setIsResumeModalOpen(false)}
-              onSave={(filePath, newResumeId) => {
-                setResumeFilePath(filePath);
-                setResumeId(newResumeId);
-                setResumeUploadMessage("Resume uploaded successfully ✓");
-              }}
-              onDelete={(deletedResumeId) => {
-                if (deletedResumeId === resumeId) {
-                  setResumeFilePath(null);
-                  setResumeId(null);
-                  setResumeUploadMessage("");
-                }
-              }}
-            />
-          )}
-
-          {isJobModalOpen && (
-            <JobPostingModal
-              isOpen={isJobModalOpen}
-              onClose={() => setIsJobModalOpen(false)}
-              onAnalyze={handleAnalyze}
-            />
-          )}
-
-          {isHistoryModalOpen && (
-            <HistoryModal
-              isOpen={isHistoryModalOpen}
-              onClose={() => setIsHistoryModalOpen(false)}
-              historyArray={historyArray}
-            />
-          )}
-        </div>
-      ) : (
-        <div className="flex w-full flex-col items-center">
-          <p className="mt-3 text-xl font-semibold">
-            Align your skills. Accelerate your career.
-          </p>
-          <div className="mt-10 flex w-full justify-center gap-12">
-            <Button
-              onClick={() => {
-                setAuthMode("login");
-                setIsAuthModalOpen(true);
-              }}
-            >
-              Login
-            </Button>
-            <Button
-              onClick={() => {
-                setAuthMode("signup");
-                setIsAuthModalOpen(true);
-              }}
-            >
-              Signup
-            </Button>
+            {isAuthModalOpen && (
+              <AuthModal
+                isOpen={isAuthModalOpen}
+                onClose={() => setIsAuthModalOpen(false)}
+                onAuthSuccess={handleAuthSuccess}
+                authMode={authMode}
+                setAuthMode={setAuthMode}
+              />
+            )}
           </div>
+        )}
+      </main>
 
-          {isAuthModalOpen && (
-            <AuthModal
-              isOpen={isAuthModalOpen}
-              onClose={() => setIsAuthModalOpen(false)}
-              onAuthSuccess={handleAuthSuccess}
-              authMode={authMode}
-              setAuthMode={setAuthMode}
-            />
-          )}
-        </div>
-      )}
-    </main>
+      {/* print-only layout used by "Download PDF" */}
+      {job && <PrintReport jobTitle={job.title} ranked={rankedResults} />}
+    </>
   );
 }
 
