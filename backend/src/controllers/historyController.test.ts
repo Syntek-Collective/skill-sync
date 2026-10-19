@@ -91,3 +91,26 @@ describe("deleteJobController", () => {
     expect(res.status).toHaveBeenCalledWith(500);
   });
 });
+
+// ===== getHistory (GET /api/history) =====
+import getHistory from "./historyController";
+import { getAnalysesForUser } from "../services/supabaseService";
+
+describe("getHistory", () => {
+  it("loads the history of the user authMiddleware verified (res.locals.user)", async () => {
+    (getAnalysesForUser as jest.Mock).mockResolvedValue([{ id: "a1" }]);
+    const req = {} as Request;
+    const res = {
+      locals: { user: { id: "user-1" } },
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    } as unknown as Response;
+    const next = jest.fn();
+
+    await getHistory(req, res, next);
+
+    expect(getAnalysesForUser).toHaveBeenCalledWith("user-1");
+    expect(res.json).toHaveBeenCalledWith({ success: true, data: [{ id: "a1" }] });
+    expect(next).not.toHaveBeenCalled();
+  });
+});
