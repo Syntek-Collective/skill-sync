@@ -86,6 +86,8 @@ cp frontend/.env.example frontend/.env
 
 The app expects the tables `profiles`, `resumes`, `job_postings` and `analyses`, and private storage buckets `resumes` and `job-postings`. Column details are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#data-model). SQL migrations for the schema and row-level security aren't in the repo yet.
 
+**Keeping it awake:** Supabase pauses free-plan projects after about a week without activity. The [Supabase keep-alive](.github/workflows/supabase-keepalive.yml) GitHub Action pings the database once a day. It needs the repo secrets `SUPABASE_URL` and `SUPABASE_ANON_KEY` (Settings → Secrets and variables → Actions).
+
 ### Run it
 
 From the repo root, one command starts both (the API on port 3000, the app on 5173):
