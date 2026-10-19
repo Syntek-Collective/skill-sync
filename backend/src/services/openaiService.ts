@@ -39,10 +39,15 @@ const DEFAULT_MODEL = 'gpt-5-mini'
 
 //reasoning models (gpt-5 family, o-series) accept a reasoning effort; low keeps a batch of resumes quick.
 //older models like gpt-4o-mini reject the setting, so only send it when it applies
+//store: false - the Responses API otherwise SAVES each response (prompt input + output) in the
+//user's OpenAI account by default. Private jobs must not leave resume text stored anywhere,
+//so every call turns that off. (This doesn't change OpenAI's own separate abuse-monitoring retention.)
 function modelSettings() {
     const model = process.env.OPENAI_MODEL || DEFAULT_MODEL
     const isReasoningModel = /^(gpt-5|o\d)/.test(model)
-    return isReasoningModel ? { model, reasoning: { effort: 'low' as const } } : { model }
+    return isReasoningModel
+        ? { model, store: false, reasoning: { effort: 'low' as const } }
+        : { model, store: false }
 }
 
 //strict JSON schemas make OpenAI return exactly this shape, so parsing can't fail on stray text

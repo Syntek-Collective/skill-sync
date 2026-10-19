@@ -163,6 +163,15 @@ export const requirementsController = async (req: Request, res: Response) => {
     }
 
     const requirements = await extractRequirements(apiKey, postingText)
+
+    // a vague posting can yield zero requirements; there'd be nothing to match resumes against
+    // (and analyze rejects an empty list), so say what to fix instead of failing every resume
+    if (requirements.length === 0) {
+      return res.status(422).json({
+        error: "Couldn't find concrete requirements in this posting. Paste the full job description, including required skills and experience.",
+      })
+    }
+
     res.json({ requirements })
   } catch (error) {
     sendError(res, "Requirements", error)

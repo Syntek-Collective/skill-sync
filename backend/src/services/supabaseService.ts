@@ -157,6 +157,14 @@ export async function getResumeForUser(resumeId: string, userId: string) {
         throw new Error(`Could not fetch resume: ${error.message}`);
     }
 
+    //The row is the user's, but the browser chose its file_path when it inserted the row.
+    //This backend reads and deletes files with the service-role key (which skips storage rules),
+    //so only trust paths inside the user's own folder ("<user id>/...") - otherwise a crafted
+    //row could point at someone else's resume.
+    if (data && !data.file_path.startsWith(`${userId}/`)) {
+        return null;
+    }
+
     return data;
 }
 
@@ -197,6 +205,14 @@ export async function countAnalysesForJob(jobPostingId: string, userId: string):
 //those analyses used, and the job posting itself. This is the "Delete job" button in Past jobs,
 //so recruiters who opt in to saving can always remove candidates' data again.
 //Returns false if the job doesn't exist or belongs to someone else (nothing is deleted).
+//
+//ORDER MATTERS - files are removed first and the analyses (the only link from a job to its
+//resumes) last. If any step fails, the links still exist, so clicking Delete again finishes the
+//job instead of reporting success and leaving files behind. Removing a file that's already gone
+//is not an error in Supabase Storage, so retries are safe.
+//
+//Known gap: a resume uploaded to a saved job but never analyzed has no analysis linking it to
+//the job, so it isn't found here (see DECISIONS.md - needs a job-to-resume table).
 export async function deleteSavedJob(jobPostingId: string, userId: string): Promise<boolean> {
     //1. make sure the job belongs to this user before touching anything
     const { data: job, error: jobError } = await supabase
@@ -209,7 +225,7 @@ export async function deleteSavedJob(jobPostingId: string, userId: string): Prom
     if (jobError) throw new Error(`Could not find job: ${jobError.message}`);
     if (!job) return false;
 
-    //2. find which resumes this job's analyses used (before deleting the analyses)
+    //2. find which resumes this job's analyses used
     const { data: analysisRows, error: analysesError } = await supabase
         .from("analyses")
         .select("resume_id")
@@ -219,7 +235,43 @@ export async function deleteSavedJob(jobPostingId: string, userId: string): Prom
     if (analysesError) throw new Error(`Could not load analyses: ${analysesError.message}`);
     const resumeIds = [...new Set((analysisRows ?? []).map((row) => row.resume_id as string))];
 
-    //3. delete the analyses first - they point at the resumes and the job posting
+    //3. keep only resumes no OTHER job's analysis still uses
+    //   (older job-seeker analyses could reuse one resume across several jobs)
+    const resumesToDelete: { id: string; file_path: string }[] = [];
+    for (const resumeId of resumeIds) {
+        const { count, error: countError } = await supabase
+            .from("analyses")
+            .select("id", { count: "exact", head: true })
+            .eq("resume_id", resumeId)
+            .neq("job_posting_id", jobPostingId);
+
+        if (countError) throw new Error(`Could not check resume use: ${countError.message}`);
+        if ((count ?? 0) > 0) continue;
+
+        //getResumeForUser also refuses paths outside this user's folder
+        const resume = await getResumeForUser(resumeId, userId);
+        if (resume) resumesToDelete.push(resume);
+    }
+
+    //4. delete the files first - if this fails, nothing else has been deleted yet
+    if (resumesToDelete.length > 0) {
+        const { error: storageError } = await supabase.storage
+            .from("resumes")
+            .remove(resumesToDelete.map((resume) => resume.file_path));
+        if (storageError) throw new Error(`Could not delete resume files: ${storageError.message}`);
+    }
+
+    //only older postings have a file; check the error so a failed removal can be retried
+    if (job.file_path) {
+        const { error: postingFileError } = await supabase.storage
+            .from("job-postings")
+            .remove([job.file_path]);
+        if (postingFileError) {
+            throw new Error(`Could not delete job posting file: ${postingFileError.message}`);
+        }
+    }
+
+    //5. then the analyses (they point at the resumes and the posting, so they go before those rows)
     const { error: deleteAnalysesError } = await supabase
         .from("analyses")
         .delete()
@@ -230,38 +282,17 @@ export async function deleteSavedJob(jobPostingId: string, userId: string): Prom
         throw new Error(`Could not delete analyses: ${deleteAnalysesError.message}`);
     }
 
-    //4. delete each resume (file + row), unless another job's analysis still uses it
-    //   (older job-seeker analyses could reuse one resume across several jobs)
-    for (const resumeId of resumeIds) {
-        const { count, error: countError } = await supabase
-            .from("analyses")
-            .select("id", { count: "exact", head: true })
-            .eq("resume_id", resumeId);
-
-        if (countError) throw new Error(`Could not check resume use: ${countError.message}`);
-        if ((count ?? 0) > 0) continue;
-
-        const resume = await getResumeForUser(resumeId, userId);
-        if (!resume) continue;
-
-        const { error: storageError } = await supabase.storage
-            .from("resumes")
-            .remove([resume.file_path]);
-        if (storageError) throw new Error(`Could not delete resume file: ${storageError.message}`);
-
+    //6. then the resume rows
+    if (resumesToDelete.length > 0) {
         const { error: resumeError } = await supabase
             .from("resumes")
             .delete()
-            .eq("id", resumeId)
+            .in("id", resumesToDelete.map((resume) => resume.id))
             .eq("user_id", userId);
-        if (resumeError) throw new Error(`Could not delete resume: ${resumeError.message}`);
+        if (resumeError) throw new Error(`Could not delete resumes: ${resumeError.message}`);
     }
 
-    //5. delete the job posting's file (only older postings have one) and then its row
-    if (job.file_path) {
-        await supabase.storage.from("job-postings").remove([job.file_path]);
-    }
-
+    //7. and last the job posting itself
     const { error: deleteJobError } = await supabase
         .from("job_postings")
         .delete()

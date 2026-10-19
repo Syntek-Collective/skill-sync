@@ -98,6 +98,14 @@ describe("extractRequirements", () => {
     expect(lastCallOptions().input).toContain("Job text");
   });
 
+  it("never stores the response at OpenAI (store: false), so private jobs leave nothing behind", async () => {
+    replyWith({ requirements: [] });
+
+    await extractRequirements("sk-user", "Job text");
+
+    expect(lastCallOptions().store).toBe(false);
+  });
+
   it("defaults to gpt-5-mini with low reasoning effort", async () => {
     replyWith({ requirements: [] });
 
@@ -146,6 +154,7 @@ describe("matchResume", () => {
     // the AI needs the requirement ids to answer per requirement
     expect(lastCallOptions().input).toContain(JSON.stringify(requirements));
     expect(lastCallOptions().input).toContain("5 years of Python");
+    expect(lastCallOptions().store).toBe(false);
     expect(lastCallOptions().text.format).toEqual(
       expect.objectContaining({ type: "json_schema", strict: true }),
     );

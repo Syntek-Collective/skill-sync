@@ -20,7 +20,7 @@
 
 */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Button from "./components/ui/Button";
 import { supabase } from "./supabaseClient";
 
@@ -139,6 +139,10 @@ function App() {
   // the resumes in the current "Analyze" click, so progress reads "2 of 3" for this batch only
   const [runningIds, setRunningIds] = useState<string[]>([]);
   const [runError, setRunError] = useState("");
+  // Each Analyze click gets a run number. Resetting the job (Start a new job, Logout, deleting the
+  // job) bumps the number, so a run still finishing in the background can tell it's outdated and
+  // stops touching state - otherwise its late answers could leak into the next job.
+  const runIdRef = useRef(0);
   // has the recruiter downloaded the latest results? Private jobs warn before leaving if not.
   // Reset to false whenever a new analysis starts.
   const [hasDownloaded, setHasDownloaded] = useState(false);
@@ -233,6 +237,11 @@ function App() {
       return;
     }
 
+    // claim a new run number; isCurrentRun() turns false if the job is reset mid-run
+    runIdRef.current += 1;
+    const runId = runIdRef.current;
+    const isCurrentRun = () => runIdRef.current === runId;
+
     setIsRunning(true);
     setRunningIds(toRun.map((candidate) => candidate.resumeId));
     setRunError("");
@@ -261,6 +270,8 @@ function App() {
           key,
           job.saved && job.id ? { jobPostingId: job.id } : { jobText: job.text },
         ));
+      // the job was reset while we waited - don't hand this job's requirements to the next one
+      if (!isCurrentRun()) return;
       setRequirements(jobRequirements);
 
       // a rejected key, an empty balance, or a full job will fail every remaining
@@ -271,6 +282,7 @@ function App() {
         toRun,
         PARALLEL_ANALYSES,
         async (candidate) => {
+          if (!isCurrentRun()) return;
           updateCandidate(candidate.resumeId, { status: "running" });
           try {
             // private jobs send the PDF itself (read in memory on the server, never stored);
@@ -286,12 +298,14 @@ function App() {
                     resumePdf: await fileToBase64(candidate.file as File),
                     requirements: jobRequirements,
                   });
+            if (!isCurrentRun()) return;
             updateCandidate(candidate.resumeId, { status: "done", result });
           } catch (error) {
             const message =
               error instanceof ApiError
                 ? error.message
                 : "Something went wrong. Please try again.";
+            if (!isCurrentRun()) return;
             updateCandidate(candidate.resumeId, { status: "error", error: message });
 
             if (error instanceof ApiError && [401, 409, 429].includes(error.status)) {
@@ -300,21 +314,25 @@ function App() {
             }
           }
         },
-        () => stopBatch,
+        // also stop starting new resumes once the job has been reset
+        () => stopBatch || !isCurrentRun(),
       );
 
+      if (!isCurrentRun()) return;
       // only saved jobs appear in Past jobs, so only they need a refresh
       if (job.saved && userId) setJobHistory(await fetchJobHistory(userId));
     } catch (error) {
       // only the requirements step reaches here; per-resume errors are handled above
       console.error("Skill match failed:", error);
+      if (!isCurrentRun()) return;
       setRunError(
         error instanceof ApiError
           ? error.message
           : "Couldn't read the job's requirements. Please try again.",
       );
     } finally {
-      setIsRunning(false);
+      // a reset already cleared isRunning; only the current run should change it
+      if (isCurrentRun()) setIsRunning(false);
     }
   };
 
@@ -330,16 +348,23 @@ function App() {
       return;
     }
 
+    // delete the file first, and stop if that fails: the row is the only record of where the
+    // file is, so it has to stay until the file is really gone (then Remove can be retried)
     const { error: storageError } = await supabase.storage
       .from("resumes")
       .remove([candidate.filePath]);
+    if (storageError) {
+      console.error("Could not remove resume file:", storageError);
+      setRunError(`Couldn't remove ${candidate.fileName}. Please try again.`);
+      return;
+    }
+
     const { error: rowError } = await supabase
       .from("resumes")
       .delete()
       .eq("id", candidate.resumeId);
-
-    if (storageError || rowError) {
-      console.error("Could not remove resume:", storageError ?? rowError);
+    if (rowError) {
+      console.error("Could not remove resume row:", rowError);
       setRunError(`Couldn't remove ${candidate.fileName}. Please try again.`);
       return;
     }
@@ -356,6 +381,10 @@ function App() {
 
   // clears the current job without asking (used after the recruiter has confirmed)
   const resetJob = () => {
+    // makes any analysis still running for this job outdated (see runIdRef)
+    runIdRef.current += 1;
+    setIsRunning(false);
+    setRunningIds([]);
     setJob(null);
     setRequirements(null);
     setCandidates([]);
@@ -364,17 +393,21 @@ function App() {
   };
 
   // ===== DOWNLOADS =====
-  // both mark the results as downloaded, which turns off the "leave page" warning
+  // a download marks the results as saved by the recruiter, which turns off the "leave page" warning
   const handleDownloadCsv = () => {
     if (!job) return;
     downloadCsv(job.title, rankedResults);
     setHasDownloaded(true);
   };
 
+  // The browser can't tell us whether the print dialog saved a PDF or was cancelled, so for
+  // private jobs we ask. Only "yes" turns off the warning; otherwise results stay protected.
   const handleDownloadPdf = () => {
     if (!job) return;
     printResults(job.title);
-    setHasDownloaded(true);
+    if (job.saved || window.confirm("Did you save the PDF? Press OK if you did, or Cancel if not.")) {
+      setHasDownloaded(true);
+    }
   };
 
   // ===== DELETE A SAVED JOB (Past jobs) =====

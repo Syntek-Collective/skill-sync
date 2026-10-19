@@ -29,8 +29,15 @@ const STATUS_TEXT: Record<MatchStatus, string> = {
 
 // CSV cells are wrapped in quotes, with any quotes inside doubled, so commas, quotes and
 // line breaks in summaries or evidence don't break the columns
+// Spreadsheets run a cell as a FORMULA if it starts with = + - @ (or a tab / carriage return).
+// File names and AI text could start that way, so text cells get a leading apostrophe, which makes
+// Excel / Sheets show it as plain text. Numbers (like the score) are left alone.
 function csvCell(value: string | number): string {
-  return `"${String(value).replace(/"/g, '""')}"`;
+  let text = String(value);
+  if (typeof value === "string" && /^[=+\-@\t\r]/.test(text)) {
+    text = `'${text}`;
+  }
+  return `"${text.replace(/"/g, '""')}"`;
 }
 
 // Builds the CSV text. Columns: rank, file, score, band, summary, then one column per

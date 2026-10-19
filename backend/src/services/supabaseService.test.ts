@@ -174,3 +174,33 @@ describe("getAnalysesforUser", () => {
     expect(result).toBe(fakeAnalyses);
   });
 });
+// ===== getResumeForUser: the stored file path must be inside the user's own folder =====
+import { getResumeForUser } from "./supabaseService";
+
+describe("getResumeForUser", () => {
+  // fakes .select().eq().eq().maybeSingle() returning one resume row
+  function mockResumeRow(row: { id: string; file_path: string } | null) {
+    mockSelect.mockReturnValue({
+      eq: () => ({
+        eq: () => ({
+          maybeSingle: async () => ({ data: row, error: null }),
+        }),
+      }),
+    });
+  }
+
+  it("returns the row when its file is in the user's folder", async () => {
+    mockResumeRow({ id: "r1", file_path: "user-1/123-0.pdf" });
+
+    await expect(getResumeForUser("r1", "user-1")).resolves.toEqual({
+      id: "r1",
+      file_path: "user-1/123-0.pdf",
+    });
+  });
+
+  it("refuses a row whose file path points into another user's folder", async () => {
+    mockResumeRow({ id: "r1", file_path: "user-2/their-resume.pdf" });
+
+    await expect(getResumeForUser("r1", "user-1")).resolves.toBeNull();
+  });
+});
