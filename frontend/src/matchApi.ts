@@ -2,7 +2,10 @@
 
 import type { CandidateResult, Requirement } from "./types";
 
-const API_URL = import.meta.env.VITE_API_URL;
+// Where the backend lives. Empty (the default) means "this same site": in production the Express
+// server also serves this React app, so "/api/..." just works. Locally, frontend/.env sets
+// VITE_API_URL=http://localhost:3000 because Vite and Express run on different ports.
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 // an error the backend explained (e.g. a rejected OpenAI key), with its HTTP status
 export class ApiError extends Error {

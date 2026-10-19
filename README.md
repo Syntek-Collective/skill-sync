@@ -37,7 +37,7 @@ Score = earned ÷ possible × 100. Bands: **Strong match** (80+), **Partial matc
 
 **By default, SkillSync stores nothing.** The job text and resume PDFs stay in your browser tab and are sent along with each analysis request. The server reads each PDF in memory and discards it. Download your results before leaving the page; the app warns you if you haven't.
 
-If a recruiter ticks **"Save this job"**, the job, its resumes and its results are stored in their account and listed under **Past jobs**, where they can be deleted at any time.
+Saving is optional and **switched off by default** (`VITE_ENABLE_SAVED_JOBS`). When it's on and a recruiter ticks **"Save this job"**, the job, its resumes and its results are stored in their account and listed under **Past jobs**, where they can be deleted at any time.
 
 **Bring your own key (BYOK):** each user pastes their own OpenAI API key. It's kept only in that browser tab and sent with each request, and the server never stores or logs it. The resume text goes to OpenAI under the user's key.
 
@@ -78,8 +78,9 @@ cp frontend/.env.example frontend/.env
 | | `CORS_ORIGIN` | Frontend URL(s) allowed to call the API, comma-separated (default `http://localhost:5173`) |
 | | `OPENAI_MODEL` | Optional, default `gpt-5-mini` |
 | | `OPENAI_API_KEY` | Only used by `npm run eval`. The app uses each user's own key. |
-| `frontend/.env` | `VITE_API_URL` | Backend URL, e.g. `http://localhost:3000` |
+| `frontend/.env` | `VITE_API_URL` | Backend URL for local dev, e.g. `http://localhost:3000`. Leave unset in production (same site) |
 | | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Supabase project URL and public anon key |
+| | `VITE_ENABLE_SAVED_JOBS` | `true` shows "Save this job" (off by default; see [DECISIONS.md](DECISIONS.md)) |
 
 ### Supabase
 
@@ -87,15 +88,13 @@ The app expects the tables `profiles`, `resumes`, `job_postings` and `analyses`,
 
 ### Run it
 
-In two terminals:
+From the repo root, one command starts both (the API on port 3000, the app on 5173):
 
 ```bash
-cd backend && npm run dev
+npm install && npm run dev
 ```
 
-```bash
-cd frontend && npm run dev
-```
+Or run them in two terminals with `npm run dev` inside `backend/` and `frontend/`.
 
 Open the URL Vite prints (usually http://localhost:5173), sign up, paste your OpenAI key, and add a job.
 
@@ -103,6 +102,8 @@ Open the URL Vite prints (usually http://localhost:5173), sign up, paste your Op
 
 | Where | Command | What it does |
 |---|---|---|
+| root | `npm run dev` | Start the API and the app together (uses `concurrently`) |
+| | `npm run build` / `npm start` | Production: install and build both apps / run the API, which also serves the app |
 | `backend/` | `npm run dev` | Run the API with ts-node (restart it after code changes) |
 | | `npm run build` / `npm start` | Compile to `dist/` / run the compiled API |
 | | `npm test` | Jest unit tests (services are mocked; no network calls) |
@@ -138,9 +139,22 @@ docs/                    architecture, privacy
 - [CONTRIBUTING.md](CONTRIBUTING.md): workflow, conventions, tests and evals
 - [SECURITY.md](SECURITY.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 
+## Deploy (Railway)
+
+SkillSync deploys as **one service**: Express serves both the API and the built React app.
+
+1. On [Railway](https://railway.com), create a project with **Deploy from GitHub repo** and pick this repo. Railway uses the root `npm run build` and `npm start`.
+2. Under **Variables**, add `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (optionally `OPENAI_MODEL`). Don't set `VITE_API_URL`, `PORT` or `CORS_ORIGIN`: the API is on the same site, and Railway provides the port.
+3. Under **Settings → Networking**, click **Generate Domain**.
+4. In Supabase → **Authentication → URL Configuration**, set **Site URL** (and add a redirect URL) to that domain, so sign-up emails link to the live app.
+
 ## Status
 
-The recruiter skill match is working locally. Still to come: a deployment, a license, and Supabase SQL migrations.
+The recruiter skill match is deployed as a single Railway service. Still to come: Supabase SQL migrations and the saved-jobs fixes listed in [DECISIONS.md](DECISIONS.md).
+
+## License
+
+[MIT](LICENSE)
 
 ## Team
 

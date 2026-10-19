@@ -5,6 +5,11 @@ import Button from "./ui/Button";
 import { supabase } from "../supabaseClient";
 import type { Job } from "../types";
 
+// "Save this job" is switched OFF unless VITE_ENABLE_SAVED_JOBS=true at build time.
+// Saved jobs still have known gaps (see DECISIONS.md - a saved job with no results doesn't show in
+// Past jobs, so it couldn't be deleted). Until the database fix lands, every job is private.
+const SAVED_JOBS_ENABLED = import.meta.env.VITE_ENABLE_SAVED_JOBS === "true";
+
 // the shape of what this modal needs from App.tsx
 interface JobPostingModalProps {
   isOpen: boolean; // is the modal open?
@@ -117,18 +122,21 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
           run the analysis, then discarded. Download your results before leaving the page.
           Analyses are sent to OpenAI using your own API key.
         </p>
-        <label className="mt-3 flex items-start gap-2 text-[#003d06]">
-          <input
-            type="checkbox"
-            checked={saveJob}
-            onChange={(e) => setSaveJob(e.target.checked)}
-            className="mt-0.5"
-          />
-          <span>
-            <span className="font-semibold">Save this job</span> so I can come back to it
-            later. Saved resumes and results are stored in my account until I delete the job.
-          </span>
-        </label>
+        {/* only shown when saved jobs are switched on (see SAVED_JOBS_ENABLED above) */}
+        {SAVED_JOBS_ENABLED && (
+          <label className="mt-3 flex items-start gap-2 text-[#003d06]">
+            <input
+              type="checkbox"
+              checked={saveJob}
+              onChange={(e) => setSaveJob(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>
+              <span className="font-semibold">Save this job</span> so I can come back to it
+              later. Saved resumes and results are stored in my account until I delete the job.
+            </span>
+          </label>
+        )}
       </div>
 
       {/* ===== ERROR MESSAGE (only shows if there IS an error) ===== */}

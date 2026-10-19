@@ -1,7 +1,20 @@
 {
+  "name": "skill-sync",
+  "private": true,
+  "description": "Skill match analyzer for recruiters: rank resumes against a job posting, with evidence.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "concurrently --names api,web --prefix-colors blue,green \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "build": "npm ci --include=dev --prefix backend && npm ci --include=dev --prefix frontend && npm run build --prefix backend && npm run build --prefix frontend",
+    "start": "npm start --prefix backend"
+  },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/jest": "^30.0.0",
+    "concurrently": "^9.2.5",
     "ts-jest": "^29.4.11",
     "typescript": "^6.0.3"
   },
