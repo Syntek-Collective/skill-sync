@@ -169,10 +169,13 @@ function App() {
   };
 
   // ===== RUN THE SKILL MATCH =====
-  const handleRunMatch = async () => {
-    if (!job || candidatesToRun.length === 0) return;
-    if (!openaiKey) {
-      setRunError("Add your OpenAI API key above to run the skill match.");
+  // runs automatically after an upload (and after a key is saved), so the recruiter never has
+  // to find a "run" button; the Retry button calls it again for anything unfinished.
+  // the key is passed in because a just-saved key isn't in this render's state yet
+  const runMatch = async (toRun: Candidate[], key: string = openaiKey) => {
+    if (!job || toRun.length === 0) return;
+    if (!key) {
+      setRunError("Add your OpenAI key above to start the match.");
       return;
     }
 
@@ -194,7 +197,7 @@ function App() {
       // the requirement list is extracted once per job and reused, so every
       // candidate (including ones added later) is scored on the same list
       const jobRequirements =
-        requirements ?? (await fetchRequirements(accessToken, openaiKey, job.id));
+        requirements ?? (await fetchRequirements(accessToken, key, job.id));
       setRequirements(jobRequirements);
 
       // a rejected key, an empty balance, or a full job will fail every remaining
@@ -202,12 +205,12 @@ function App() {
       let stopBatch = false;
 
       await runWithConcurrency(
-        candidatesToRun,
+        toRun,
         PARALLEL_ANALYSES,
         async (candidate) => {
           updateCandidate(candidate.resumeId, { status: "running" });
           try {
-            const result = await analyzeCandidate(accessToken, openaiKey, {
+            const result = await analyzeCandidate(accessToken, key, {
               resumeId: candidate.resumeId,
               jobPostingId: job.id,
               requirements: jobRequirements,
@@ -291,6 +294,8 @@ function App() {
     setOpenaiKey(key);
     writeStoredKey(key);
     setRunError("");
+    // resumes uploaded before the key was added start now
+    if (!isRunning) runMatch(candidatesToRun, key);
   };
 
   const handleForgetKey = () => {
@@ -346,23 +351,26 @@ function App() {
 
           {!job ? (
             <div className="mt-10 flex flex-wrap justify-center gap-6">
-              <Button onClick={() => setIsJobModalOpen(true)}>Add the job</Button>
+              <Button variant="primary" onClick={() => setIsJobModalOpen(true)}>
+                Add the job
+              </Button>
             </div>
           ) : (
             <>
               <div className="mt-10 flex flex-wrap justify-center gap-4">
                 <Button
+                  variant={candidates.length === 0 ? "primary" : "secondary"}
                   onClick={() => setIsUploadModalOpen(true)}
                   disabled={isRunning || candidates.length >= MAX_CANDIDATES}
                 >
                   Add resumes ({candidates.length}/{MAX_CANDIDATES})
                 </Button>
-                <Button
-                  onClick={handleRunMatch}
-                  disabled={isRunning || !openaiKey || candidatesToRun.length === 0}
-                >
-                  {isRunning ? "Running..." : "Run skill match"}
-                </Button>
+                {/* only needed when something didn't finish (an error, or a stopped batch) */}
+                {!isRunning && openaiKey && candidatesToRun.length > 0 && (
+                  <Button variant="primary" onClick={() => runMatch(candidatesToRun)}>
+                    Retry ({candidatesToRun.length})
+                  </Button>
+                )}
                 <Button onClick={handleStartNewJob} disabled={isRunning}>
                   Start a new job
                 </Button>
@@ -411,9 +419,11 @@ function App() {
               isOpen={isUploadModalOpen}
               onClose={() => setIsUploadModalOpen(false)}
               remainingSlots={MAX_CANDIDATES - candidates.length}
-              onUploaded={(newCandidates) =>
-                setCandidates((current) => [...current, ...newCandidates])
-              }
+              onUploaded={(newCandidates) => {
+                setCandidates((current) => [...current, ...newCandidates]);
+                // start right away - uploading is the last thing the recruiter has to do
+                runMatch(newCandidates);
+              }}
             />
           )}
 

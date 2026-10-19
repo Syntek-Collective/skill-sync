@@ -156,7 +156,7 @@ function RankedResults({ jobTitle, candidates, onRemove, isRunning }: RankedResu
 
       {candidates.length === 0 ? (
         <p className="mt-4 text-xs text-[#7a887d]">
-          Add up to 10 resumes, then run the skill match to rank them against this job.
+          Add up to 10 resumes. The match starts as soon as they're uploaded.
         </p>
       ) : (
         <>
@@ -185,8 +185,13 @@ function RankedResults({ jobTitle, candidates, onRemove, isRunning }: RankedResu
                 >
                   <span className="truncate">{candidate.fileName}</span>
                   <span className="flex shrink-0 items-center gap-3 text-xs">
-                    {candidate.status === "running" && <Loading />}
-                    {candidate.status === "pending" && "Waiting to run"}
+                    {candidate.status === "running" && (
+                      <>
+                        <Loading />
+                        Analyzing
+                      </>
+                    )}
+                    {candidate.status === "pending" && (isRunning ? "Queued" : "Not started")}
                     {candidate.status === "error" && (
                       <span className="text-red-700">{candidate.error}</span>
                     )}

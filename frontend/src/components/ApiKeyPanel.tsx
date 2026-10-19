@@ -20,9 +20,15 @@ function ApiKeyPanel({ apiKey, onSave, onForget }: ApiKeyPanelProps) {
 
   if (apiKey) {
     return (
-      <section className="mt-6 flex flex-wrap items-center justify-center gap-4 text-sm text-[#235c2a]">
+      <section className="mt-6 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-[#235c2a]">
         <span>OpenAI key saved for this tab (ending in {apiKey.slice(-4)})</span>
-        <Button onClick={onForget}>Forget my key</Button>
+        <button
+          type="button"
+          onClick={onForget}
+          className="text-xs underline underline-offset-2 hover:opacity-70"
+        >
+          Forget my key
+        </button>
       </section>
     );
   }
