@@ -4,7 +4,7 @@
   "description": "Skill match analyzer for recruiters: rank resumes against a job posting, with evidence.",
   "license": "MIT",
   "engines": {
-    "node": ">=22"
+    "node": "22.x"
   },
   "scripts": {
     "dev": "concurrently --names api,web --prefix-colors blue,green \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
