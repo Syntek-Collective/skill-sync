@@ -54,6 +54,10 @@ export const matchPrompt = `
     FOR EACH REQUIREMENT (use its exact id):
     - "met": the resume clearly shows it.
     - "partial": the resume shows something closely related or a lesser amount (e.g. 1 year when 3 are asked for).
+      Also use "partial" when the skill is a standard, core part of a credential or training the resume
+      lists, even if the skill itself isn't named (e.g. alignment and breathwork are core to a 200-hour
+      yoga teacher training; data structures are core to a CS degree). Cite the credential as evidence.
+      Never mark these "met" - only direct evidence in the resume earns "met".
     - "not_met": the resume doesn't show it.
     - evidence: a short quote or close paraphrase from the resume that supports the status, or "" if not met.
     - Only use what the resume actually says. Never assume or invent experience.
