@@ -1,0 +1,51 @@
+# SUPABASE KEEP-ALIVE
+#
+# Supabase pauses free-plan projects after about a week without database activity, which would
+# take the live app down until someone restores the project by hand. This job makes one tiny
+# read request to the database every day so the project always counts as active.
+#
+# - It uses the PUBLIC anon key (the same one the frontend ships), never the service-role key.
+#   Row-level security means the request returns no rows; it still counts as database activity.
+# - Needs two repo secrets (Settings -> Secrets and variables -> Actions):
+#     SUPABASE_URL       e.g. https://<project-ref>.supabase.co
+#     SUPABASE_ANON_KEY  the project's anon (public) key
+# - GitHub turns off scheduled workflows after 60 days without any commits to the repo, and
+#   emails the admins. Re-enable it from the Actions tab (or push any commit).
+# - Run it by hand any time: Actions tab -> "Supabase keep-alive" -> "Run workflow".
+
+name: Supabase keep-alive
+
+on:
+  schedule:
+    # every day at 14:00 UTC (GitHub may start scheduled runs a little late; that's fine)
+    - cron: "0 14 * * *"
+  workflow_dispatch:
+
+# this job only reads from Supabase; it needs no access to the repo's contents
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping the Supabase database
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          # fail clearly if the secrets were never added
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::Add the SUPABASE_URL and SUPABASE_ANON_KEY repository secrets."
+            exit 1
+          fi
+
+          # one small read through Supabase's REST API (PostgREST), which runs a real database query.
+          # --fail makes the job fail (and GitHub email the admins) if the project is down or paused.
+          status=$(curl --silent --show-error --fail --max-time 30 \
+            --output /dev/null --write-out "%{http_code}" \
+            "$SUPABASE_URL/rest/v1/profiles?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+
+          echo "Supabase answered with HTTP $status - the project is awake."
