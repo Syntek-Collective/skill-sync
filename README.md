@@ -1,65 +1,147 @@
 # SkillSync
 
-SkillSync is a skill-gap analyzer that compares your resume against any job listing and shows you exactly what skills you're missing — so you know which jobs are realistic for you right now, and what to learn to close the gap.
+SkillSync is a **skill match analyzer for recruiters**. Paste one job posting, add up to 10 resumes, and SkillSync ranks the candidates by how well each resume shows the job's requirements. Every score comes with the evidence behind it.
 
-## The Problem
+It's a **review aid, not a hiring tool**. It shows what each resume does and doesn't show, with quotes. People make the decisions.
 
-When you're applying to 100+ jobs a week as a beginner, it's overwhelming — and the hardest part is that you can't tell which jobs are realistic for your current skill level, or what you'd need to learn to be ready. You end up applying blindly to roles you're not qualified for, or you don't know what to focus on. There's no clear signal connecting where your skills are to where a specific job needs them to be.
+## How it works
 
-## The Solution
+1. **Add the job.** Paste the title and full posting.
+2. **Add resumes.** Drag and drop (or pick) up to 10 PDFs, 5 MB each.
+3. **Analyze.** SkillSync reads the job's requirements **once**, then checks every resume against that same list, so all candidates are scored on identical criteria.
+4. **Review the ranking.** Each candidate shows:
+   - a score and match band
+   - each requirement as *met*, *partial* or *not shown*, with evidence quoted from the resume
+   - strengths, concerns to check, and suggested interview questions
+5. **Download** the results as a PDF report or a CSV.
 
-SkillSync compares your resume against the real requirements of any job listing and highlights exactly what's missing. You can use it two ways: to rule out jobs that aren't realistic for your skill level yet, or to see precisely what gaps to close for the jobs you're pursuing.
+### How the score works
 
-The hard part isn't listing requirements — it's making the analysis accurate and prioritized, which is where we focused our engineering.
+The AI only judges each requirement. The score is calculated in code, so the same judgments always give the same score.
 
-## MVP Scope
+| | Weight / credit |
+|---|---|
+| Required requirement | counts **2×** |
+| Preferred requirement | counts **1×** |
+| Met / Partial / Not shown | **1** / **0.5** / **0** credit |
 
-The core features for the first working version:
+Score = earned ÷ possible × 100. Bands: **Strong match** (80+), **Partial match** (50–79), **Weak match** (below 50).
 
-- **Sign up / log in** — so the app knows who each user is (needed for saving your resume).
-- **Save your resume once** — paste your resume and it's saved to your account, so you don't re-enter it every time.
-- **Paste a job posting** — the per-session input you want to analyze.
-- **Extract requirements from the posting** — the system pulls the required skills out of the unstructured job text.
-- **Compare resume against requirements** — the matching engine that finds what lines up and what doesn't.
-- **Generate the gap analysis** — the system shows what you have and what you're missing.
-- **Display the results** — the user sees their skill gap clearly.
+### Fairness
 
-## Tough Technical Challenges
+- Contact details (emails, phone numbers, links) are removed from resume text before it goes to the AI.
+- The AI is told to ignore names, age, gender, ethnicity, photos, addresses, and anything that hints at them (like graduation years). It never mentions them.
+- Requirements a resume can't show are left out: schedule, location, work authorization, personality traits.
 
-- **Messy, unstructured input.** Resumes come in all different formats and styles — separating the meaningful skills from the background noise is a real parsing problem.
-- **Semantic matching.** A resume might say "built a REST API" while a posting asks for "backend experience" — same skill, different words. Matching by meaning rather than exact keywords is the only way this works.
-- **Measuring accuracy.** How do we know the gap analysis is actually correct, and not making things up or missing real gaps? We plan to use a golden dataset (a set of test cases with known-correct answers) to evaluate the output.
+## Privacy
 
-## Stretch Goals
+**By default, SkillSync stores nothing.** The job text and resume PDFs stay in your browser tab and are sent along with each analysis request. The server reads each PDF in memory and discards it. Download your results before leaving the page; the app warns you if you haven't.
 
-Features we'll add once the core MVP works:
+If a recruiter ticks **"Save this job"**, the job, its resumes and its results are stored in their account and listed under **Past jobs**, where they can be deleted at any time.
 
-- **PDF upload + text extraction** — let users upload their resume as a file (PDF), not just pasted text.
-- **RAG matching layer** — upgrade the matching to use embeddings and a vector database (Pinecone + `text-embedding-3-small`) for more robust semantic matching.
-- **Saved query history** — keep a list of every job analyzed and its skill gap.
-- **Prioritization** — rank which gaps matter most for a given role.
-- **Learning path** — map each gap to what to actually go learn.
+**Bring your own key (BYOK):** each user pastes their own OpenAI API key. It's kept only in that browser tab and sent with each request, and the server never stores or logs it. The resume text goes to OpenAI under the user's key.
 
-## Tech Stack
+Full details: [docs/PRIVACY.md](docs/PRIVACY.md).
 
-- **Frontend:** React + Vite
-- **Backend:** Node + Express
-- **Language:** TypeScript
-- **Database:** Supabase (PostgreSQL)
-- **Auth:** Supabase Auth
-- **AI / LLM:** OpenAI (`gpt-4o-mini`)
+## Tech stack
 
-In the MVP, the resume and job posting are both pasted as text. The job posting is sent to the LLM, which extracts the requirements as structured JSON. The LLM then compares the resume against those requirements directly and generates the gap analysis. (The RAG/embeddings approach is a stretch goal — the MVP uses direct LLM comparison to ship a working version faster.)
+- **Frontend:** React 19, Vite, Tailwind CSS, TypeScript
+- **Backend:** Node, Express 5, TypeScript
+- **Auth and optional storage:** Supabase (Postgres, Auth, Storage)
+- **AI:** OpenAI Responses API with strict JSON-schema output. The model is set by `OPENAI_MODEL` (default `gpt-5-mini`).
+- **Tests:** Jest (backend), plus an AI eval suite with a golden dataset
 
-## Getting Started
+## Getting started
 
-1. Clone the repo: git clone https://github.com/Big-Porky-Girls/skill-sync.git
-2. Install dependencies (npm install on front and back end)
-3. Set up environment variables: create a `.env` file in the backend folder and add your OpenAI API key and Supabase URL + keys.
-4. Run the apps: npm run dev (from the front & back end)
+You'll need Node.js (developed on Node 22), a Supabase project, and an OpenAI API key to try the app.
 
+```bash
+git clone https://github.com/Syntek-Collective/skill-sync.git
+cd skill-sync
+cd backend && npm install && cd ..
+cd frontend && npm install && cd ..
+```
 
+### Environment variables
+
+Copy the examples and fill them in. Never commit the real `.env` files.
+
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+```
+
+| File | Variable | What it's for |
+|---|---|---|
+| `backend/.env` | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Verifying logins and saved jobs (Supabase → Project Settings → API) |
+| | `PORT` | API port (default `3000`) |
+| | `CORS_ORIGIN` | Frontend URL(s) allowed to call the API, comma-separated (default `http://localhost:5173`) |
+| | `OPENAI_MODEL` | Optional, default `gpt-5-mini` |
+| | `OPENAI_API_KEY` | Only used by `npm run eval`. The app uses each user's own key. |
+| `frontend/.env` | `VITE_API_URL` | Backend URL, e.g. `http://localhost:3000` |
+| | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Supabase project URL and public anon key |
+
+### Supabase
+
+The app expects the tables `profiles`, `resumes`, `job_postings` and `analyses`, and private storage buckets `resumes` and `job-postings`. Column details are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#data-model). SQL migrations for the schema and row-level security aren't in the repo yet.
+
+### Run it
+
+In two terminals:
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+Open the URL Vite prints (usually http://localhost:5173), sign up, paste your OpenAI key, and add a job.
+
+## Scripts
+
+| Where | Command | What it does |
+|---|---|---|
+| `backend/` | `npm run dev` | Run the API with ts-node (restart it after code changes) |
+| | `npm run build` / `npm start` | Compile to `dist/` / run the compiled API |
+| | `npm test` | Jest unit tests (services are mocked; no network calls) |
+| | `npm run eval` | Run the AI against the golden dataset (uses `OPENAI_API_KEY`, costs a few cents) |
+| `frontend/` | `npm run dev` | Vite dev server with hot reload |
+| | `npm run build` / `npm run preview` | Production build / preview it |
+| | `npm run lint` | ESLint |
+
+## Project structure
+
+```
+backend/src/
+  app.ts, server.ts      Express setup and entry point
+  routes/                URL → controller
+  controllers/           request handling (analyze, history)
+  services/              OpenAI, Supabase, PDF text, scoring, redaction
+  prompt.ts              the two AI prompts (requirements, match)
+  eval/                  golden dataset, eval runner, eval checks
+  types/                 shared types
+frontend/src/
+  App.tsx                page state and the analyze flow
+  components/            modals, results, print report, UI pieces
+  matchApi.ts            calls to the backend
+  exportResults.ts       CSV and PDF downloads
+docs/                    architecture, privacy
+```
+
+## Documentation
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): request flow, API, scoring, data model
+- [docs/PRIVACY.md](docs/PRIVACY.md): what is and isn't stored
+- [DECISIONS.md](DECISIONS.md): why things are the way they are
+- [CONTRIBUTING.md](CONTRIBUTING.md): workflow, conventions, tests and evals
+- [SECURITY.md](SECURITY.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+
+## Status
+
+The recruiter skill match is working locally. Still to come: a deployment, a license, and Supabase SQL migrations.
 
 ## Team
 
-Built by the Big Porky Girls.
+Originally built by the Big Porky Girls; now maintained under [Syntek Collective](https://github.com/Syntek-Collective).
