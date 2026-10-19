@@ -11,6 +11,7 @@
 
 import { useState } from "react";
 
+import Button from "./ui/Button";
 import Loading from "./ui/Loading";
 import type { Candidate, CandidateResult, MatchStatus } from "../types";
 
@@ -139,14 +140,49 @@ type RankedResultsProps = {
   candidates: Candidate[];
   // remove a resume that hasn't been analyzed yet
   onRemove: (candidate: Candidate) => void;
+  // true while an "Analyze" click is being processed
   isRunning: boolean;
+  // starts the analysis for every resume not analyzed yet (App.tsx handleAnalyze)
+  onAnalyze: () => void;
+  // how many resumes the next Analyze click would process (new ones + failed ones)
+  toAnalyzeCount: number;
+  // the Analyze button is disabled until an OpenAI key is saved
+  hasKey: boolean;
+  // e.g. "Analyzing 2 of 3..." - shown on the button while a batch runs
+  progressText: string;
 };
 
-function RankedResults({ jobTitle, candidates, onRemove, isRunning }: RankedResultsProps) {
+// Two modes in one card:
+//  - adding: resumes show as "Ready" and nothing runs until the recruiter clicks Analyze,
+//    so they can keep adding or removing resumes first
+//  - analyzing: the button shows progress, rows show Queued / Analyzing, and finished
+//    candidates move into the ranked list above as they complete
+function RankedResults({
+  jobTitle,
+  candidates,
+  onRemove,
+  isRunning,
+  onAnalyze,
+  toAnalyzeCount,
+  hasKey,
+  progressText,
+}: RankedResultsProps) {
+  // finished candidates, best score first
   const analyzed = candidates
     .filter((candidate) => candidate.status === "done" && candidate.result)
     .sort((a, b) => (b.result?.score ?? 0) - (a.result?.score ?? 0));
+  // everything else: ready, queued, analyzing, or failed
   const notAnalyzed = candidates.filter((candidate) => candidate.status !== "done");
+
+  // "Analyze 3 resumes" on the first run; "Analyze 2 new resumes" once some are already ranked
+  const resumeWord = toAnalyzeCount === 1 ? "resume" : "resumes";
+  const analyzeLabel =
+    analyzed.length > 0
+      ? `Analyze ${toAnalyzeCount} new ${resumeWord}`
+      : `Analyze ${toAnalyzeCount} ${resumeWord}`;
+
+  // show the button while running (for progress) or when there's something to analyze
+  const showAnalyzeButton = isRunning || toAnalyzeCount > 0;
 
   return (
     <section className="mt-10 w-full max-w-3xl rounded-lg border border-green-900/20 bg-white/80 p-6 text-left shadow-md">
@@ -154,62 +190,77 @@ function RankedResults({ jobTitle, candidates, onRemove, isRunning }: RankedResu
         Skill Match: {jobTitle}
       </h2>
 
-      {candidates.length === 0 ? (
-        <p className="mt-4 text-xs text-[#7a887d]">
-          Add up to 10 resumes. The match starts as soon as they're uploaded.
+      {/* instructions for the adding mode, until the first analysis has finished */}
+      {analyzed.length === 0 && !isRunning && (
+        <p className="mt-2 text-xs text-[#5f6b61]">
+          Add all the resumes you want to compare (up to 10), then click Analyze.
         </p>
-      ) : (
-        <>
-          {analyzed.length > 0 && (
-            <>
-              <ReviewAidNote />
-              <div className="mt-4 space-y-3">
-                {analyzed.map((candidate, index) => (
-                  <CandidateCard
-                    key={candidate.resumeId}
-                    rank={index + 1}
-                    fileName={candidate.fileName}
-                    result={candidate.result as CandidateResult}
-                  />
-                ))}
-              </div>
-            </>
-          )}
+      )}
 
-          {notAnalyzed.length > 0 && (
-            <ul className="mt-4 space-y-2">
-              {notAnalyzed.map((candidate) => (
-                <li
-                  key={candidate.resumeId}
-                  className="flex items-center justify-between gap-3 rounded-md border border-green-900/10 bg-white px-4 py-2 text-sm text-[#4f5f52]"
-                >
-                  <span className="truncate">{candidate.fileName}</span>
-                  <span className="flex shrink-0 items-center gap-3 text-xs">
-                    {candidate.status === "running" && (
-                      <>
-                        <Loading />
-                        Analyzing
-                      </>
-                    )}
-                    {candidate.status === "pending" && (isRunning ? "Queued" : "Not started")}
-                    {candidate.status === "error" && (
-                      <span className="text-red-700">{candidate.error}</span>
-                    )}
-                    {candidate.status !== "running" && !isRunning && (
-                      <button
-                        type="button"
-                        onClick={() => onRemove(candidate)}
-                        className="rounded border border-red-300 px-2 py-1 text-red-700 hover:bg-red-50"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+      {/* ranked results, once at least one candidate is done */}
+      {analyzed.length > 0 && (
+        <>
+          <ReviewAidNote />
+          <div className="mt-4 space-y-3">
+            {analyzed.map((candidate, index) => (
+              <CandidateCard
+                key={candidate.resumeId}
+                rank={index + 1}
+                fileName={candidate.fileName}
+                result={candidate.result as CandidateResult}
+              />
+            ))}
+          </div>
         </>
+      )}
+
+      {/* resumes not analyzed yet, with their status */}
+      {notAnalyzed.length > 0 && (
+        <ul className="mt-4 space-y-2">
+          {notAnalyzed.map((candidate) => (
+            <li
+              key={candidate.resumeId}
+              className="flex items-center justify-between gap-3 rounded-md border border-green-900/10 bg-white px-4 py-2 text-sm text-[#4f5f52]"
+            >
+              <span className="truncate">{candidate.fileName}</span>
+              <span className="flex shrink-0 items-center gap-3 text-xs">
+                {candidate.status === "running" && (
+                  <>
+                    <Loading />
+                    Analyzing
+                  </>
+                )}
+                {/* "pending" means added but not analyzed: Queued during a run, Ready otherwise */}
+                {candidate.status === "pending" && (isRunning ? "Queued" : "Ready")}
+                {candidate.status === "error" && (
+                  <span className="text-red-700">{candidate.error}</span>
+                )}
+                {/* resumes can only be removed between runs */}
+                {candidate.status !== "running" && !isRunning && (
+                  <button
+                    type="button"
+                    onClick={() => onRemove(candidate)}
+                    className="rounded border border-red-300 px-2 py-1 text-red-700 hover:bg-red-50"
+                  >
+                    Remove
+                  </button>
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* the one button that starts an analysis */}
+      {showAnalyzeButton && (
+        <div className="mt-5 flex flex-col items-center gap-2">
+          <Button variant="primary" onClick={onAnalyze} disabled={isRunning || !hasKey}>
+            {isRunning ? progressText : analyzeLabel}
+          </Button>
+          {!hasKey && !isRunning && (
+            <p className="text-xs text-[#5f6b61]">Add your OpenAI key above to analyze.</p>
+          )}
+        </div>
       )}
     </section>
   );

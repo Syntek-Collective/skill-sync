@@ -5,8 +5,8 @@
   Flow for a signed-in recruiter:
     1. add their OpenAI key (BYOK - see ApiKeyPanel)
     2. add the job they're hiring for (JobPostingModal saves it)
-    3. add up to 10 resume PDFs (CandidateUploadModal)
-    4. run the skill match: the backend pulls the job's requirements ONCE, then this page
+    3. add up to 10 resume PDFs (CandidateUploadModal) - uploading only adds them to the list
+    4. click "Analyze N resumes" (handleAnalyze): the backend pulls the job's requirements ONCE, then this page
        analyzes each resume against that same list, 3 at a time, so a big batch never hits
        a request timeout and one bad resume doesn't stop the rest
     5. see the candidates ranked (RankedResults); past jobs are in HistoryModal
@@ -126,6 +126,8 @@ function App() {
   const [requirements, setRequirements] = useState<Requirement[] | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [isRunning, setIsRunning] = useState(false);
+  // the resumes in the current "Analyze" click, so progress reads "2 of 3" for this batch only
+  const [runningIds, setRunningIds] = useState<string[]>([]);
   const [runError, setRunError] = useState("");
 
   const [isJobModalOpen, setIsJobModalOpen] = useState(false);
@@ -158,7 +160,17 @@ function App() {
   const candidatesToRun = candidates.filter(
     (candidate) => candidate.status === "pending" || candidate.status === "error",
   );
-  const doneCount = candidates.filter((candidate) => candidate.status === "done").length;
+
+  // progress text for the Analyze button while a batch runs.
+  // requirements is null until the job's requirement list comes back (first click only)
+  const finishedInBatch = candidates.filter(
+    (candidate) =>
+      runningIds.includes(candidate.resumeId) &&
+      (candidate.status === "done" || candidate.status === "error"),
+  ).length;
+  const progressText = requirements
+    ? `Analyzing ${finishedInBatch} of ${runningIds.length}...`
+    : "Reading the job's requirements...";
 
   const updateCandidate = (resumeId: string, changes: Partial<Candidate>) => {
     setCandidates((current) =>
@@ -169,17 +181,21 @@ function App() {
   };
 
   // ===== RUN THE SKILL MATCH =====
-  // runs automatically after an upload (and after a key is saved), so the recruiter never has
-  // to find a "run" button; the Retry button calls it again for anything unfinished.
-  // the key is passed in because a just-saved key isn't in this render's state yet
-  const runMatch = async (toRun: Candidate[], key: string = openaiKey) => {
+  // Called by the "Analyze N resumes" button. Adding resumes never starts an analysis on its own,
+  // so the recruiter can keep adding (or removing) resumes until the list is complete.
+  // It analyzes everything not done yet: new resumes plus any that failed last time.
+  const handleAnalyze = async () => {
+    // snapshot the list now; candidates added while this runs wait for the next click
+    const toRun = candidatesToRun;
+    const key = openaiKey;
     if (!job || toRun.length === 0) return;
     if (!key) {
-      setRunError("Add your OpenAI key above to start the match.");
+      setRunError("Add your OpenAI key above to analyze.");
       return;
     }
 
     setIsRunning(true);
+    setRunningIds(toRun.map((candidate) => candidate.resumeId));
     setRunError("");
 
     try {
@@ -294,8 +310,6 @@ function App() {
     setOpenaiKey(key);
     writeStoredKey(key);
     setRunError("");
-    // resumes uploaded before the key was added start now
-    if (!isRunning) runMatch(candidatesToRun, key);
   };
 
   const handleForgetKey = () => {
@@ -365,30 +379,20 @@ function App() {
                 >
                   Add resumes ({candidates.length}/{MAX_CANDIDATES})
                 </Button>
-                {/* only needed when something didn't finish (an error, or a stopped batch) */}
-                {!isRunning && openaiKey && candidatesToRun.length > 0 && (
-                  <Button variant="primary" onClick={() => runMatch(candidatesToRun)}>
-                    Retry ({candidatesToRun.length})
-                  </Button>
-                )}
                 <Button onClick={handleStartNewJob} disabled={isRunning}>
                   Start a new job
                 </Button>
               </div>
-
-              {isRunning && (
-                <p className="mt-4 text-sm font-semibold text-[#3f7f52]">
-                  {requirements
-                    ? `${doneCount} of ${candidates.length} done`
-                    : "Reading the job's requirements..."}
-                </p>
-              )}
 
               <RankedResults
                 jobTitle={job.title}
                 candidates={candidates}
                 onRemove={handleRemoveCandidate}
                 isRunning={isRunning}
+                onAnalyze={handleAnalyze}
+                toAnalyzeCount={candidatesToRun.length}
+                hasKey={Boolean(openaiKey)}
+                progressText={progressText}
               />
             </>
           )}
@@ -419,11 +423,10 @@ function App() {
               isOpen={isUploadModalOpen}
               onClose={() => setIsUploadModalOpen(false)}
               remainingSlots={MAX_CANDIDATES - candidates.length}
-              onUploaded={(newCandidates) => {
-                setCandidates((current) => [...current, ...newCandidates]);
-                // start right away - uploading is the last thing the recruiter has to do
-                runMatch(newCandidates);
-              }}
+              // uploading only adds resumes to the list; the Analyze button starts the analysis
+              onUploaded={(newCandidates) =>
+                setCandidates((current) => [...current, ...newCandidates])
+              }
             />
           )}
 
