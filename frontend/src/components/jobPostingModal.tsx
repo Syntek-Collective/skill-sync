@@ -9,7 +9,7 @@ interface JobPostingModalProps {
   isOpen: boolean; // is the modal open?
   onClose: () => void; // how to close it
   // send the title, posting, AND the new job posting's id up to App.tsx
-  onAnalyze: (jobData: {
+  onSave: (jobData: {
     title: string;
     posting: string;
     jobPostingId: string;
@@ -19,7 +19,7 @@ interface JobPostingModalProps {
 const JobPostingModal: React.FC<JobPostingModalProps> = ({
   isOpen,
   onClose,
-  onAnalyze,
+  onSave,
 }) => {
   // track what the user types into the TITLE input
   const [jobTitle, setJobTitle] = useState("");
@@ -28,7 +28,7 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
   // track an error message to show if something's missing
   const [error, setError] = useState<string | null>(null);
 
-  // runs when the user clicks "Analyze"
+  // runs when the user clicks "Save job"
   // saves the job posting, grabs its id, then hands everything up to App.tsx
   const handleSubmit = async () => {
     if (!jobTitle.trim() || !jobPosting.trim()) {
@@ -61,7 +61,7 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
       const jobPostingId = jobInsertResponse.data.id;
 
       // hand the title, posting, and id up to App.tsx
-      onAnalyze({ title: jobTitle, posting: jobPosting, jobPostingId });
+      onSave({ title: jobTitle, posting: jobPosting, jobPostingId });
       onClose();
     } catch (err) {
       console.error("Error saving job posting:", err);
@@ -70,7 +70,7 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add New Job Posting">
+    <Modal isOpen={isOpen} onClose={onClose} title="Job you're hiring for">
       {/* ===== TITLE INPUT (short - one line) ===== */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -105,7 +105,7 @@ const JobPostingModal: React.FC<JobPostingModalProps> = ({
       <div className="flex justify-end gap-2">
         <Button onClick={onClose}>Cancel</Button>
         <Button onClick={handleSubmit} disabled={!jobTitle || !jobPosting}>
-          Analyze
+          Save job
         </Button>
       </div>
     </Modal>
