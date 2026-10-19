@@ -3,8 +3,12 @@
 
   Lets a recruiter pick several resume PDFs for the current job (up to 10 per job in total),
   either with the file picker or by dragging and dropping them onto the dashed box.
-  Each file is uploaded to the private "resumes" storage bucket under the recruiter's user id,
-  and gets a row in the resumes table. The parent receives the new candidates to analyze.
+  What happens to the files depends on whether the job is saved:
+  - private job (the default): nothing is uploaded. The PDFs stay in this page's memory and are
+    sent along with each analysis request, then forgotten when the page is left.
+  - saved job: each file is uploaded to the private "resumes" storage bucket under the
+    recruiter's user id and gets a row in the resumes table, so it can be reopened later.
+  Either way, the parent receives the new candidates to analyze.
 */
 
 import React, { useEffect, useRef, useState } from "react";
@@ -21,6 +25,8 @@ interface CandidateUploadModalProps {
   onClose: () => void;
   // how many more resumes this job can take (10 minus the ones already added)
   remainingSlots: number;
+  // true only when the recruiter ticked "Save this job"; decides whether files are uploaded
+  saveToAccount: boolean;
   onUploaded: (candidates: Candidate[]) => void;
 }
 
@@ -35,6 +41,7 @@ const CandidateUploadModal: React.FC<CandidateUploadModalProps> = ({
   isOpen,
   onClose,
   remainingSlots,
+  saveToAccount,
   onUploaded,
 }) => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -87,6 +94,23 @@ const CandidateUploadModal: React.FC<CandidateUploadModalProps> = ({
   const handleUpload = async () => {
     if (selectedFiles.length === 0) return;
 
+    // PRIVATE JOB: keep the files in memory only - no upload, no database row.
+    // Each gets a random id so the page can track its status.
+    if (!saveToAccount) {
+      onUploaded(
+        selectedFiles.map((file) => ({
+          resumeId: crypto.randomUUID(),
+          fileName: file.name,
+          file,
+          status: "pending",
+        })),
+      );
+      setSelectedFiles([]);
+      onClose();
+      return;
+    }
+
+    // SAVED JOB: upload each file and create its resumes row
     setIsLoading(true);
     setError(null);
 

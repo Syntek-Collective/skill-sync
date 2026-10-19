@@ -2,7 +2,9 @@
 
   HISTORY MODAL
 
-  Shows the recruiter's past jobs, each with its candidates ranked best match first.
+  Shows the recruiter's SAVED jobs (only jobs saved with "Save this job" are stored), each with
+  its candidates ranked best match first. Each job can be deleted, which removes its results
+  and resume files for good.
   App.tsx groups the saved analyses by job posting before passing them in
   (older job-seeker analyses are in a different format and are left out).
 
@@ -20,11 +22,35 @@ type HistoryModalProps = {
   isOpen: boolean;
   onClose: () => void;
   jobHistory: JobHistory[];
+  // deletes one saved job (App.tsx calls the backend, then reloads the list)
+  onDeleteJob: (jobPostingId: string) => Promise<void>;
 };
 
-function HistoryModal({ isOpen, onClose, jobHistory }: HistoryModalProps) {
+function HistoryModal({ isOpen, onClose, jobHistory, onDeleteJob }: HistoryModalProps) {
   // which job is expanded (null = none)
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+  // the job currently being deleted, to disable its button and show "Deleting..."
+  const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+
+  // asks first, because deleting removes the saved resumes and results permanently
+  const handleDelete = async (job: JobHistory) => {
+    const confirmed = window.confirm(
+      `Delete "${job.jobTitle}"? Its saved results and resume files will be permanently removed.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingJobId(job.jobPostingId);
+    setDeleteError("");
+    try {
+      await onDeleteJob(job.jobPostingId);
+    } catch (error) {
+      console.error("Delete job failed:", error);
+      setDeleteError(`Couldn't delete "${job.jobTitle}". Please try again.`);
+    } finally {
+      setDeletingJobId(null);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -43,9 +69,11 @@ function HistoryModal({ isOpen, onClose, jobHistory }: HistoryModalProps) {
           </button>
         </div>
 
+        {deleteError && <p className="mt-3 text-sm text-red-700">{deleteError}</p>}
+
         {jobHistory.length === 0 ? (
           <p className="mt-4 text-sm text-[#4f5f52]">
-            No past skill matches yet. Run one and it will show up here.
+            No saved jobs. Tick "Save this job" when adding a job to keep it here.
           </p>
         ) : (
           <div className="mt-4 space-y-3">
@@ -77,12 +105,21 @@ function HistoryModal({ isOpen, onClose, jobHistory }: HistoryModalProps) {
                     {top && ` · top match ${top.result.score}% (${top.fileName})`}
                   </p>
 
-                  <button
-                    onClick={() => setExpandedJobId(isExpanded ? null : job.jobPostingId)}
-                    className="mt-2 text-xs font-medium text-green-700 hover:opacity-70"
-                  >
-                    {isExpanded ? "Hide candidates ▲" : "View ranked candidates ▼"}
-                  </button>
+                  <div className="mt-2 flex items-center justify-between gap-4">
+                    <button
+                      onClick={() => setExpandedJobId(isExpanded ? null : job.jobPostingId)}
+                      className="text-xs font-medium text-green-700 hover:opacity-70"
+                    >
+                      {isExpanded ? "Hide candidates ▲" : "View ranked candidates ▼"}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(job)}
+                      disabled={deletingJobId !== null}
+                      className="rounded border border-red-300 px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                    >
+                      {deletingJobId === job.jobPostingId ? "Deleting..." : "Delete job"}
+                    </button>
+                  </div>
 
                   {isExpanded && (
                     <div className="mt-3 border-t border-green-900/10 pt-3">

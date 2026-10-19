@@ -42,26 +42,30 @@ async function postJson<T>(
   return response.json() as Promise<T>;
 }
 
-// step 1 - once per job: the requirement list every resume is checked against
+// step 1 - once per job: the requirement list every resume is checked against.
+// Unsaved jobs send the posting text ({ jobText }); saved jobs send their id ({ jobPostingId }).
 export async function fetchRequirements(
   accessToken: string,
   openaiKey: string,
-  jobPostingId: string,
+  body: { jobText: string } | { jobPostingId: string },
 ): Promise<Requirement[]> {
   const data = await postJson<{ requirements: Requirement[] }>(
     "/api/analyze/requirements",
     accessToken,
     openaiKey,
-    { jobPostingId },
+    body,
   );
   return data.requirements;
 }
 
-// step 2 - once per resume
+// step 2 - once per resume.
+// Unsaved jobs send the PDF itself (base64); saved jobs send the stored resume + job ids.
 export async function analyzeCandidate(
   accessToken: string,
   openaiKey: string,
-  body: { resumeId: string; jobPostingId: string; requirements: Requirement[] },
+  body:
+    | { resumePdf: string; requirements: Requirement[] }
+    | { resumeId: string; jobPostingId: string; requirements: Requirement[] },
 ): Promise<CandidateResult> {
   const data = await postJson<{ result: CandidateResult }>(
     "/api/analyze",
@@ -70,6 +74,33 @@ export async function analyzeCandidate(
     body,
   );
   return data.result;
+}
+
+// Removes one of the user's saved jobs and everything saved with it (Past jobs -> Delete).
+export async function deleteSavedJob(accessToken: string, jobPostingId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/history/${encodeURIComponent(jobPostingId)}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw new ApiError(response.status, errorBody?.error || "Couldn't delete this job.");
+  }
+}
+
+// Reads a File into base64 text so the PDF can travel inside a normal JSON request.
+// (FileReader gives "data:application/pdf;base64,AAAA..." - we keep only the part after the comma)
+export function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result);
+      resolve(dataUrl.slice(dataUrl.indexOf(",") + 1));
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
 
 // Runs worker over items with at most `limit` running at once.

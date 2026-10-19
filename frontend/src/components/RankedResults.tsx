@@ -150,6 +150,11 @@ type RankedResultsProps = {
   hasKey: boolean;
   // e.g. "Analyzing 2 of 3..." - shown on the button while a batch runs
   progressText: string;
+  // whether this job is saved to the account (Past jobs) or private to this page
+  isSaved: boolean;
+  // download the ranked results as a CSV / as a PDF (print dialog)
+  onDownloadCsv: () => void;
+  onDownloadPdf: () => void;
 };
 
 // Two modes in one card:
@@ -166,6 +171,9 @@ function RankedResults({
   toAnalyzeCount,
   hasKey,
   progressText,
+  isSaved,
+  onDownloadCsv,
+  onDownloadPdf,
 }: RankedResultsProps) {
   // finished candidates, best score first
   const analyzed = candidates
@@ -189,6 +197,13 @@ function RankedResults({
       <h2 className="text-lg font-semibold uppercase tracking-wide text-green-950">
         Skill Match: {jobTitle}
       </h2>
+
+      {/* where these results live: saved jobs are in Past jobs; private ones vanish on reload */}
+      <p className="mt-1 text-xs text-[#5f6b61]">
+        {isSaved
+          ? "Saved to your account. You'll find this job in Past jobs."
+          : "Not saved. Download your results before leaving this page."}
+      </p>
 
       {/* instructions for the adding mode, until the first analysis has finished */}
       {analyzed.length === 0 && !isRunning && (
@@ -249,6 +264,14 @@ function RankedResults({
             </li>
           ))}
         </ul>
+      )}
+
+      {/* downloads, once there's at least one result and nothing is running */}
+      {analyzed.length > 0 && !isRunning && (
+        <div className="mt-5 flex flex-wrap justify-center gap-3">
+          <Button onClick={onDownloadPdf}>Download PDF</Button>
+          <Button onClick={onDownloadCsv}>Download CSV</Button>
+        </div>
       )}
 
       {/* the one button that starts an analysis */}
