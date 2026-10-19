@@ -2,6 +2,8 @@
 
 SkillSync is a **skill match analyzer for recruiters**. Paste one job posting, add up to 10 resumes, and SkillSync ranks the candidates by how well each resume shows the job's requirements. Every score comes with the evidence behind it.
 
+**Try it live:** https://skill-sync.up.railway.app (bring your own OpenAI API key)
+
 It's a **review aid, not a hiring tool**. It shows what each resume does and doesn't show, with quotes. People make the decisions.
 
 ## How it works
@@ -152,7 +154,7 @@ SkillSync deploys as **one service**: Express serves both the API and the built 
 
 ## Status
 
-The recruiter skill match is deployed as a single Railway service. Still to come: Supabase SQL migrations and the saved-jobs fixes listed in [DECISIONS.md](DECISIONS.md).
+The recruiter skill match is live at https://skill-sync.up.railway.app, deployed as a single Railway service. Still to come: Supabase SQL migrations and the saved-jobs fixes listed in [DECISIONS.md](DECISIONS.md).
 
 ## License
 
