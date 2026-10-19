@@ -258,3 +258,73 @@ describe("requirementsController", () => {
     expect(res.json).toHaveBeenCalledWith({ requirements });
   });
 });
+
+// ===== UNSAVED MODE (the default): the PDF travels in the request and nothing is stored =====
+describe("analyzeController - unsaved mode", () => {
+  // a tiny stand-in PDF: only the "%PDF-" header matters, since parsing is mocked
+  const pdfBase64 = Buffer.from("%PDF-1.7 fake pdf body").toString("base64");
+
+  it("reads the PDF in memory, matches it, and saves nothing", async () => {
+    mockOwnedRowsAndMatch();
+    const { req, res } = setup({ resumePdf: pdfBase64, requirements });
+
+    await analyzeController(req, res);
+
+    // the PDF bytes go straight to the parser - no storage download, no row lookups
+    expect(mockTextFromPdf).toHaveBeenCalledWith(Buffer.from("%PDF-1.7 fake pdf body"));
+    expect(mockGetResume).not.toHaveBeenCalled();
+    expect(mockFetchResumeFile).not.toHaveBeenCalled();
+    // contact details are still redacted before the AI sees the text
+    expect(mockMatchResume).toHaveBeenCalledWith(
+      "sk-test",
+      requirements,
+      "Python developer. Email [email]",
+    );
+    expect(mockSaveAnalysis).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({
+      result: expect.objectContaining({ version: 2, score: 67, band: "Partial match" }),
+    });
+  });
+
+  it("rejects a file that isn't a PDF", async () => {
+    const notPdf = Buffer.from("hello, I am a text file").toString("base64");
+    const { req, res } = setup({ resumePdf: notPdf, requirements });
+
+    await analyzeController(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(mockTextFromPdf).not.toHaveBeenCalled();
+  });
+
+  it("rejects a PDF over 5 MB", async () => {
+    const huge = Buffer.concat([Buffer.from("%PDF-"), Buffer.alloc(5 * 1024 * 1024)]);
+    const { req, res } = setup({ resumePdf: huge.toString("base64"), requirements });
+
+    await analyzeController(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(mockTextFromPdf).not.toHaveBeenCalled();
+  });
+});
+
+describe("requirementsController - unsaved mode", () => {
+  it("extracts requirements from job text sent in the request, without a database lookup", async () => {
+    mockExtractRequirements.mockResolvedValue(requirements);
+    const { req, res } = setup({ jobText: "We need a Python developer." });
+
+    await requirementsController(req, res);
+
+    expect(mockGetJobPosting).not.toHaveBeenCalled();
+    expect(mockExtractRequirements).toHaveBeenCalledWith("sk-test", "We need a Python developer.");
+    expect(res.json).toHaveBeenCalledWith({ requirements });
+  });
+
+  it("rejects job text over 20,000 characters", async () => {
+    const { req, res } = setup({ jobText: "x".repeat(20001) });
+
+    await requirementsController(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(mockExtractRequirements).not.toHaveBeenCalled();
+  });
+});

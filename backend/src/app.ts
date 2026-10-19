@@ -24,6 +24,12 @@ app.use(cors({
   credentials: true
 }));
 
+//the analyze routes can receive a resume PDF inside the JSON body (base64, up to 5 MB of PDF),
+//so they get a bigger size limit. This parser runs first; the default one below then skips
+//those requests because their body is already parsed.
+app.use('/api/analyze', express.json({ limit: '8mb' }));
+
+//every other route keeps Express's small default limit (100 KB)
 app.use(express.json());
 
 // TEST ROUTE - WORKING ✅
