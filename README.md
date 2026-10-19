@@ -144,4 +144,4 @@ The recruiter skill match is working locally. Still to come: a deployment, a lic
 
 ## Team
 
-Originally built by the Big Porky Girls; now maintained under [Syntek Collective](https://github.com/Syntek-Collective).
+Built by Kanami Anderson, Olivia Mckelvey, and Tanisha Thompson-Jones. Maintained under [Syntek Collective](https://github.com/Syntek-Collective).
