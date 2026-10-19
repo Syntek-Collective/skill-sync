@@ -30,14 +30,31 @@ Keep going backwards until you reach what you already have, then flip it forward
 Why backwards? The goal is always clear, so it's easier to reason back from it 
 than to guess where to start.
 
-Example (analyze):
-  GOAL: skill-gap analysis
-  ← need: resume TEXT + job posting fed to the AI
-  ← but I only have a filePath (not text), so: extract text from the PDF
-  ← but the PDF is in storage, so: fetch the file using the filePath
-  ← I HAVE the filePath ✅ (reached what I have)
+Example (analyze - one resume against one job, private mode):
+  GOAL: a scored skill match for this resume
+  ← need: a score, so: calculate it from the AI's met / partial / not met judgments (scoring)
+  ← need: those judgments, so: send the resume TEXT + the job's requirements to the AI (openaiService)
+  ← the AI shouldn't see contact details, so: redact the text first (redact)
+  ← need: resume TEXT, but I have a PDF, so: extract text from the PDF (pdfService)
+  ← I HAVE the PDF (sent in the request as base64) + the requirements ✅ (reached what I have)
 
   flip it forward = the steps:
-  fetch file (supabaseService) → extract text (pdfService) → send to AI (openaiService) → analysis
+  decode PDF → extract text (pdfService) → redact (redact) → match (openaiService) → score (scoring) → respond
+
+  (saved mode adds steps at the start: look up the user's saved resume + job, fetch the PDF from
+   storage (supabaseService) - and one at the end: save the result)
 
 Each step is usually a service call (each does one specialized job).
+
+
+# Our controllers
+- analyzeController.ts
+    - requirementsController → POST /api/analyze/requirements (the job's requirement list, once per job)
+    - analyzeController      → POST /api/analyze (one resume against that list)
+- historyController.ts
+    - getHistory             → GET /api/history (original history endpoint; not used by the current frontend)
+    - deleteJobController    → DELETE /api/history/:jobPostingId (Past jobs → Delete job)
+
+Every controller takes the user from res.locals.user (set by authMiddleware after it checks the
+login token) - never from the request body, which anyone could fake.
+(full request/response details: docs/ARCHITECTURE.md)
