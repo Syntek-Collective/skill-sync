@@ -81,14 +81,12 @@ import { prompt } from '../prompt'
 
 
 
-//openai is our connection to AI - a client is your personal connection to OpenAI
-const openai = new OpenAI({
-    //authenticated connection - we use our API key as a way for openAI to identify us 
-    apiKey: process.env.OPENAI_API_KEY
-})
-
 //STEP ONE - create a function that will handle the AI call - use the client/connection to 'talk to' AI
-const getAnalysis = async (resumeText: string, jobText: string) => {
+//apiKey is the user's own OpenAI key (BYOK); it is used for this one call and never stored or logged
+const getAnalysis = async (apiKey: string, resumeText: string, jobText: string) => {
+    //a client per request, because every user brings their own key
+    const openai = new OpenAI({ apiKey })
+
     //use the client to connect to openai passing it data, instructions and storing the response
     const response = await openai.responses.create({
         //what model you want to run the request on 

@@ -122,7 +122,29 @@ import ResumeModal from "./components/resumeModal";
 import JobPostingModal from "./components/jobPostingModal";
 import AuthModal from "./components/AuthModal";
 import HistoryModal from "./components/HistoryModal";
+import ApiKeyPanel from "./components/ApiKeyPanel";
 import skillSyncLogo from "./assets/skillsync-transparent.png";
+
+// BYOK: the user's OpenAI key is kept in sessionStorage so it's gone when the tab closes.
+// storage can be blocked (private mode, strict settings), so failures just mean "no saved key"
+const OPENAI_KEY_STORAGE = "skillsync.openaiKey";
+
+function readStoredKey() {
+  try {
+    return sessionStorage.getItem(OPENAI_KEY_STORAGE) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function writeStoredKey(key: string) {
+  try {
+    if (key) sessionStorage.setItem(OPENAI_KEY_STORAGE, key);
+    else sessionStorage.removeItem(OPENAI_KEY_STORAGE);
+  } catch {
+    // key still works for this page load, it just won't survive a refresh
+  }
+}
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -139,6 +161,7 @@ function App() {
   const [analysisResponse, setAnalysisResponse] = useState<string>("");
   const [analysisError, setAnalysisError] = useState("");
   const [resumeUploadMessage, setResumeUploadMessage] = useState("");
+  const [openaiKey, setOpenaiKey] = useState(readStoredKey);
   const [historyArray, setHistoryArray] = useState<
     { id: string; jobListing: string; result: string; createdAt: string }[]
   >([]);
@@ -211,6 +234,11 @@ function App() {
       return;
     }
 
+    if (!openaiKey) {
+      setAnalysisError("Add your OpenAI API key above to run an analysis.");
+      return;
+    }
+
     setIsLoading(true);
     setAnalysisError("");
 
@@ -231,6 +259,7 @@ function App() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
+          "X-OpenAI-Key": openaiKey,
         },
         // send only which resume + job posting to use; the backend works out
         // the user from the auth token and loads the rows itself
@@ -241,7 +270,13 @@ function App() {
       });
 
       if (!response.ok) {
-        throw new Error("Analysis request failed");
+        // the backend sends a readable message (e.g. a rejected OpenAI key); show it as-is
+        const errorBody = await response.json().catch(() => null);
+        setAnalysisError(
+          errorBody?.error ||
+            "Something went wrong while generating your analysis. Please try again.",
+        );
+        return;
       }
 
       const data = await response.json();
@@ -290,8 +325,21 @@ function App() {
     });
   };
 
+  const handleSaveKey = (key: string) => {
+    setOpenaiKey(key);
+    writeStoredKey(key);
+    setAnalysisError("");
+  };
+
+  const handleForgetKey = () => {
+    setOpenaiKey("");
+    writeStoredKey("");
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    // don't leave a key behind for whoever uses this browser next
+    handleForgetKey();
     setIsLoggedIn(false);
     setUserName("");
     setUserId(null);
@@ -328,13 +376,19 @@ function App() {
             {userName}, leave nothing to chance.
           </p>
 
+          <ApiKeyPanel
+            apiKey={openaiKey}
+            onSave={handleSaveKey}
+            onForget={handleForgetKey}
+          />
+
           <div className="mt-10 flex flex-wrap justify-center gap-6">
             <Button onClick={() => setIsResumeModalOpen(true)}>
               Upload Resume
             </Button>
             <Button
               onClick={() => setIsJobModalOpen(true)}
-              disabled={!resumeFilePath}
+              disabled={!resumeFilePath || !openaiKey}
             >
               Upload Job Posting
             </Button>

@@ -55,6 +55,13 @@ import getAnalysis from '../services/openaiService'
 console.log("File is Running")
 
 const runEval = async () => {
+    // evals run with your own key from backend/.env (the app itself uses each user's key)
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+        console.error("Set OPENAI_API_KEY in backend/.env to run the evals.");
+        process.exit(1);
+    }
+
     let passed = 0;
     console.log("🚀 Starting Evaluation Runner...")
 
@@ -62,7 +69,7 @@ const runEval = async () => {
     console.log("Running Test:", testCase.label);
 
     try {
-        const aiResponse = await getAnalysis(testCase.resume, testCase.jobPosting);
+        const aiResponse = await getAnalysis(apiKey, testCase.resume, testCase.jobPosting);
 
         // turn the string into an object so we can check its fields
         const ai = JSON.parse(aiResponse);

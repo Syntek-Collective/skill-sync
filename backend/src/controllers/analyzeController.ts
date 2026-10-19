@@ -37,6 +37,7 @@
 */
 
 import { Request, Response } from 'express'
+import { APIError } from 'openai'
 
 import getAnalysis from '../services/openaiService'
 import {
@@ -46,6 +47,21 @@ import {
   saveAnalysis,
 } from '../services/supabaseService'
 import { textFromPdf } from '../services/pdfService'
+
+
+// turns an OpenAI error status into a message the user can act on
+function openaiErrorResponse(status: number) {
+  if (status === 401) {
+    return { status: 401, message: "OpenAI rejected your API key. Check it and try again." }
+  }
+  if (status === 429) {
+    return { status: 429, message: "OpenAI rate limit reached, or your key is out of credit. Check your OpenAI billing and try again." }
+  }
+  if (status === 403 || status === 404) {
+    return { status: 400, message: "Your OpenAI key doesn't have access to the model SkillSync uses." }
+  }
+  return { status: 502, message: "OpenAI couldn't complete the analysis. Please try again." }
+}
 
 
 // controllers are doers: receive data, do the work, send a response
@@ -59,6 +75,13 @@ const analyzeController = async (req: Request, res: Response) => {
 
   if (typeof resumeId !== 'string' || typeof jobPostingId !== 'string' || !resumeId || !jobPostingId) {
     return res.status(400).json({ error: "resumeId and jobPostingId are required." })
+  }
+
+  // BYOK - the user's own OpenAI key, sent per request; never stored or logged
+  const apiKey = req.headers['x-openai-key']
+
+  if (typeof apiKey !== 'string' || !apiKey.trim()) {
+    return res.status(400).json({ error: "Add your OpenAI API key to run an analysis." })
   }
 
   try {
@@ -77,7 +100,7 @@ const analyzeController = async (req: Request, res: Response) => {
     const resumeText = await textFromPdf(resumePDF)
 
     // ANALYZE - send the text + saved job posting to the AI, get the analysis
-    const analysis = await getAnalysis(resumeText, jobPosting.extracted_text)
+    const analysis = await getAnalysis(apiKey.trim(), resumeText, jobPosting.extracted_text)
 
     // SAVE - store the analysis in the database (so it shows in history)
     const saved = await saveAnalysis({
@@ -94,7 +117,15 @@ const analyzeController = async (req: Request, res: Response) => {
       createdAt: saved.created_at
     })
   } catch (error) {
-    // if any step failed (fetch, extract, AI, save), send an error instead of crashing
+    // OpenAI errors are about the user's key, so tell them what to fix.
+    // only the status is logged - OpenAI's error message can echo part of the key
+    if (error instanceof APIError && error.status) {
+      console.error("Analyze failed: OpenAI returned", error.status)
+      const openaiError = openaiErrorResponse(error.status)
+      return res.status(openaiError.status).json({ error: openaiError.message })
+    }
+
+    // if any other step failed (fetch, extract, save), send an error instead of crashing
     console.error("Analyze failed:", error)
     res.status(500).json({ error: "Something went wrong. Please try again." })
   }
