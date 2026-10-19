@@ -38,4 +38,16 @@ You import express in every router file in order to access Router() & create the
 
 NOTE: '/' means right at the base, nothing extra (the full path is just the base path itself)
 
+
+# Our routes
+  app.ts: app.use('/api/analyze', analyzeRouter)
+    POST /api/analyze/requirements  → requirementsController
+    POST /api/analyze               → analyzeController
+  app.ts: app.use('/api/history', historyRouter)
+    GET    /api/history                → getHistory
+    DELETE /api/history/:jobPostingId  → deleteJobController   (":jobPostingId" = a value in the URL, read with req.params)
+
+Every route except /api/test runs authMiddleware first, so only logged-in users reach the controller.
+(full request/response details: docs/ARCHITECTURE.md)
+
 NOTE: The file names have nothing to do with the address - path names and file names are two different things
