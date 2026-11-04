@@ -120,9 +120,13 @@ Errors come back as `{ "error": "message for the user" }`.
 
 OpenAI errors are logged by **status only**, because OpenAI's error text can echo part of the key.
 
+### Pairwise ranking, bias audit and WebSocket
+
+`POST /api/rankings`, `GET /api/rankings/:runId`, `POST /api/rankings/:runId/resume`, `POST /api/bias-audit`, and the `/ws` WebSocket (authenticated with the same Supabase token in its first message). Full request and event shapes: [RANKING.md](RANKING.md).
+
 ## Data model
 
-Supabase tables, as used by the app. Only **saved** jobs write to the last three.
+Supabase tables, as used by the app. Only **saved** jobs write to `job_postings`, `resumes` and `analyses`. Pairwise ranking runs (private or saved) write to `ranking_runs` and `ranking_events`.
 
 | Table | Columns | Notes |
 |---|---|---|
@@ -130,12 +134,14 @@ Supabase tables, as used by the app. Only **saved** jobs write to the last three
 | `job_postings` | `id`, `user_id`, `job_title`, `company_name`, `file_name`, `file_path`, `extracted_text`, `created_at` | `extracted_text` is the posting |
 | `resumes` | `id`, `user_id`, `title`, `file_name`, `file_path`, `extracted_text`, `created_at`, `updated_at` | The PDF is in the `resumes` bucket at `file_path` (`<user id>/<timestamp>-<n>.pdf`, never the original file name) |
 | `analyses` | `id`, `user_id`, `resume_id`, `job_posting_id`, `result` (jsonb), `created_at` | `result` is a `CandidateResult` (`version: 2`) |
+| `ranking_runs` | `id`, `user_id`, `job_posting_id`, `mode`, `status`, `candidate_ids`, `resume_ids`, `rounds`, `total_tasks`, `completed_tasks`, `requirements`, `result`, `error`, timestamps | One pairwise ranking run. Created by `backend/db/migrations/001_ranking_runs.sql` |
+| `ranking_events` | `run_id`, `seq`, `type`, `payload`, `created_at` | Append-only event log; primary key `(run_id, seq)`. Never contains resume text |
 
 **Storage buckets:** `resumes` and `job-postings`, both private.
 
 **Older data:** rows from the earlier job-seeker version have a different `result` shape (no `version: 2`). They're kept but not shown.
 
-**Access:** the browser uses the **anon key**, so Supabase row-level security is what keeps users' rows apart. The backend uses the **service-role key**, which bypasses row-level security. That's why every backend lookup filters by the verified user's id. The schema and policies aren't in the repo yet.
+**Access:** the browser uses the **anon key**, so Supabase row-level security is what keeps users' rows apart. The backend uses the **service-role key**, which bypasses row-level security. That's why every backend lookup filters by the verified user's id. The original schema and policies aren't in the repo yet; the ranking tables and their policies are in `backend/db/migrations/`.
 
 ## Frontend map
 

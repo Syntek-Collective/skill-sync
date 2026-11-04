@@ -35,6 +35,18 @@ For a private job, nothing in that process is written to the database or to disk
 
 The job posting text (to extract requirements) and each resume's redacted text (to match it). Requests use your own API key, so they fall under **your** OpenAI account and [OpenAI's API data policies](https://openai.com/policies/). Every call sends `store: false`, so OpenAI doesn't keep the response in your account's stored responses. That setting doesn't change OpenAI's own separate retention for abuse monitoring, which its policies describe. SkillSync doesn't send names separately. Names inside the resume text aren't removed, but the AI is told to ignore them and never mention them.
 
+## Pairwise ranking and the bias audit
+
+Both features use the same redacted resume text and your own OpenAI key, sent per request.
+
+- **Pairwise ranking runs** are stored in `ranking_runs` and `ranking_events` so a run can survive a dropped connection. Those rows hold the requirement list, candidate ids, who won each comparison, and the requirement ids that decided it. **Never resume text.**
+  - **Private runs:** the redacted resume texts are held in server memory only while the run is going, then cleared. The model's one-line reason for each comparison is streamed to your browser but **not stored**, because it can paraphrase a resume. If the server restarts mid-run, a private run is marked *interrupted* and you run it again.
+    - **What a private run keeps after it ends:** the candidate ids (the app's own random ids, not names or file names), the job's requirement list, who won each comparison and which requirement ids decided it, and the final strengths. No resume text, no file names, no reasons. These rows stay until you click **Delete run** on the finished (or failed, or interrupted) run, or your account is deleted.
+  - **Saved runs:** resume text is read from your saved PDFs when needed, and the reason for each comparison is stored with the run, capped at 500 characters. A saved run is linked to its job, so **Delete job** deletes it too. You can also delete one run with **Delete run**.
+  - Every event is visible only to the user who started the run (row-level security, plus a user-id check on every backend query and on the WebSocket subscription).
+- **Bias audit** results are computed and returned in one request and **not stored**. The counterfactual versions of each resume exist only in memory; the response contains labels and scores, not text.
+- The names used by the bias audit are synthetic probes from published audit-study lists. They're added to the redacted text only for the audit and never stored. If a resume's first line looks like the candidate's own name, the probe name replaces that line in the audit copy, so each copy carries only one name.
+
 ## Fairness safeguards
 
 SkillSync is a **review aid**. It shows what a resume does and doesn't show, and people make the decisions. To keep the analysis about the job:
@@ -52,6 +64,7 @@ Some places regulate automated tools used in hiring (for example New York City's
 - **Past jobs** lists only jobs you saved.
 - **Delete job** permanently removes:
   - that job's results
+  - that job's pairwise ranking runs and their stored comparisons
   - the resume files and rows those results used, **except** a resume another job's results still use (only possible with older data, where one resume could be analyzed for several jobs). That resume stays until the other job is deleted too.
   - the job posting
 - **Not covered by Delete job yet:**

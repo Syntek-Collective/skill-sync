@@ -29,6 +29,29 @@ The AI only judges each requirement. The score is calculated in code, so the sam
 
 Score = earned ÷ possible × 100. Bands: **Strong match** (80+), **Partial match** (50–79), **Weak match** (below 50).
 
+### Pairwise ranking
+
+Per-candidate scores can drift a little between calls. **Pairwise ranking** is a second, more stable ordering:
+
+- The AI compares candidates **two at a time** against the same requirement list and picks the stronger one (or a tie), citing the requirements that decided it. With 2 rounds, every pair is judged in **both orders** to cancel position bias.
+- A **Bradley-Terry model** is fitted to those wins and losses (Hunter's MM algorithm, with a small prior so an undefeated candidate stays finite). Each candidate gets a latent **strength**; the ranking is the strengths in order.
+- `npm run eval:stability` (in `backend/`) measures how well each method holds up across repeated runs: Kendall's tau between runs and top-1 agreement for pairwise vs. per-candidate scoring.
+
+Ranking runs are **durable batches**. Their state and an append-only event log live in PostgreSQL, and progress streams to the browser over a **WebSocket** used as an event bus. A client that disconnects reconnects and resumes from the last event it saw, without restarting the run. The API routes and the WebSocket both require a verified Supabase login token (JWT). Details: [docs/RANKING.md](docs/RANKING.md).
+
+### Bias audit
+
+The **bias audit** measures whether a demographic signal changes the score, using **matched-pair counterfactuals**: the same resume is scored by the normal scorer in versions that differ only in one proxy, and the score difference isolates that attribute's effect.
+
+| Proxy | What changes |
+|---|---|
+| Name (gender) | A male-coded vs. female-coded first name, same surname |
+| Name (ethnicity) | A White-coded vs. Black-coded first name (lists from Bertrand & Mullainathan, 2004) |
+| Pronouns | he/him vs. she/her vs. they/them |
+| Graduation year | Degree years shifted 20 years earlier (an age proxy) |
+
+Each version is scored several times to separate the effect from ordinary call-to-call noise. The report shows the **mean score change with a 95% bootstrap confidence interval**, how often the match band flips, and the **impact ratio** (four-fifths rule) for reaching *Strong match*. It's a diagnostic, not a fairness certification.
+
 ### Fairness
 
 - Common contact details are removed from resume text before it goes to the AI: email addresses, North American-style phone numbers, and links starting with `http`/`www` or pointing to LinkedIn or GitHub. This is best-effort pattern matching, so other formats (for example some international phone numbers or bare domains like `portfolio.example.com`) can remain.
@@ -86,7 +109,9 @@ cp frontend/.env.example frontend/.env
 
 ### Supabase
 
-The app expects the tables `profiles`, `resumes`, `job_postings` and `analyses`, and private storage buckets `resumes` and `job-postings`. Column details are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#data-model). SQL migrations for the schema and row-level security aren't in the repo yet.
+The app expects the tables `profiles`, `resumes`, `job_postings` and `analyses`, and private storage buckets `resumes` and `job-postings`. Column details are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#data-model). SQL for these original tables isn't in the repo yet.
+
+For pairwise ranking, run `backend/db/migrations/001_ranking_runs.sql` in the Supabase SQL Editor once. It creates `ranking_runs` and `ranking_events` with row-level security on.
 
 **Keeping it awake:** Supabase pauses free-plan projects after about a week without activity. The [Supabase keep-alive](.github/workflows/supabase-keepalive.yml) GitHub Action pings the database once a day. It needs the repo secrets `SUPABASE_URL` and `SUPABASE_ANON_KEY` (Settings → Secrets and variables → Actions).
 
@@ -112,6 +137,7 @@ Open the URL Vite prints (usually http://localhost:5173), sign up, paste your Op
 | | `npm run build` / `npm start` | Compile to `dist/` / run the compiled API |
 | | `npm test` | Jest unit tests (services are mocked; no network calls) |
 | | `npm run eval` | Run the AI against the golden dataset (uses `OPENAI_API_KEY`, costs a few cents) |
+| | `npm run eval:stability` | Compare run-to-run stability of pairwise (Bradley-Terry) vs. per-candidate ranking (uses `OPENAI_API_KEY`) |
 | `frontend/` | `npm run dev` | Vite dev server with hot reload |
 | | `npm run build` / `npm run preview` | Production build / preview it |
 | | `npm run lint` | ESLint |
@@ -122,15 +148,21 @@ Open the URL Vite prints (usually http://localhost:5173), sign up, paste your Op
 backend/src/
   app.ts, server.ts      Express setup and entry point
   routes/                URL → controller
-  controllers/           request handling (analyze, history)
-  services/              OpenAI, Supabase, PDF text, scoring, redaction
-  prompt.ts              the two AI prompts (requirements, match)
-  eval/                  golden dataset, eval runner, eval checks
+  controllers/           request handling (analyze, history, rankings, bias audit)
+  services/              OpenAI, Supabase, PDF text, scoring, redaction,
+                         Bradley-Terry, pair schedule, pairwise judge,
+                         counterfactuals, bias audit, ranking store and runner
+  realtime/              WebSocket server and event bus for ranking runs
+  middleware/            Supabase JWT verification
+  prompt.ts              the AI prompts (requirements, match, pairwise)
+  eval/                  golden dataset, eval runner, eval checks, stability eval
+backend/db/migrations/   SQL for ranking_runs and ranking_events
   types/                 shared types
 frontend/src/
   App.tsx                page state and the analyze flow
-  components/            modals, results, print report, UI pieces
+  components/            modals, results, pairwise ranking, bias audit, UI pieces
   matchApi.ts            calls to the backend
+  rankingSocket.ts       WebSocket client with reconnect and resume
   exportResults.ts       CSV and PDF downloads
 docs/                    architecture, privacy
 ```
@@ -138,6 +170,7 @@ docs/                    architecture, privacy
 ## Documentation
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): request flow, API, scoring, data model
+- [docs/RANKING.md](docs/RANKING.md): pairwise ranking, bias audit, ranking runs, WebSocket protocol
 - [docs/PRIVACY.md](docs/PRIVACY.md): what is and isn't stored
 - [DECISIONS.md](DECISIONS.md): why things are the way they are
 - [CONTRIBUTING.md](CONTRIBUTING.md): workflow, conventions, tests and evals
