@@ -73,3 +73,84 @@ export function isCandidateResult(value: unknown): value is CandidateResult {
     (value as { version?: unknown }).version === 2
   );
 }
+
+// ===== Pairwise ranking and bias audit (docs/RANKING.md) =====
+
+// one candidate's Bradley-Terry strength. Strengths are normalised to geometric mean 1.
+export type BTStrength = {
+  id: string;
+  strength: number;
+  logStrength: number;
+  wins: number;
+  losses: number;
+  ties: number;
+};
+
+export type RankingResult = { strengths: BTStrength[]; iterations: number; converged: boolean };
+
+export type RankingRunStatus = "queued" | "running" | "completed" | "failed" | "interrupted";
+
+// GET /api/rankings/:runId -> run
+export type RankingRun = {
+  id: string;
+  status: RankingRunStatus;
+  mode: "saved" | "private";
+  totalTasks: number;
+  completedTasks: number;
+  result: RankingResult | null;
+  error: string | null;
+};
+
+// what the ranking and audit endpoints take for each candidate: saved jobs send the stored
+// resume's id, private jobs send the PDF itself (base64, like /api/analyze)
+export type RankingCandidateInput = { id: string; resumeId: string } | { id: string; resumePdf: string };
+
+type RankingEventBase = { runId: string; seq: number };
+
+// events streamed over the /ws socket
+export type RankingEvent = RankingEventBase &
+  (
+    | { type: "run_started"; totalTasks: number }
+    // a stopped saved run was resumed on the server; any earlier "failed" no longer applies
+    | { type: "run_resumed"; completedTasks: number; totalTasks: number }
+    | {
+        type: "comparison";
+        // seq is the task's place in the run's pair schedule (not the event seq)
+        task: { seq?: number; a: string; b: string };
+        winner: "a" | "b" | "tie";
+        // null when replayed from a PRIVATE run: the reason is shown live but never stored
+        reason: string | null;
+        decidingRequirementIds: string[];
+        completedTasks: number;
+        totalTasks: number;
+      }
+    | { type: "standings"; strengths: BTStrength[] }
+    | { type: "completed"; result: RankingResult }
+    | { type: "failed"; error: string }
+  );
+
+export type ComparisonEvent = Extract<RankingEvent, { type: "comparison" }>;
+
+export type ProxyAttribute = "name_gender" | "name_ethnicity" | "pronouns" | "graduation_year";
+
+// the audit never returns the variant texts, only their labels
+export type AuditPair = {
+  candidateId: string;
+  baseline: { label: string };
+  variant: { label: string };
+  baselineScore: number;
+  variantScore: number;
+  delta: number;
+};
+
+export type AttributeReport = {
+  attribute: ProxyAttribute;
+  pairs: AuditPair[];
+  // variant - baseline, in score points
+  meanDelta: number;
+  ci95: [number, number];
+  // share of pairs whose match band changed
+  flipRate: number;
+  // four-fifths rule: min/max "Strong match" rate across variant labels; null if none selected
+  impactRatio: number | null;
+};

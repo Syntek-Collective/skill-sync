@@ -3,6 +3,8 @@ import "dotenv/config";
 
 //Creates the Supabase client used for Storage and database calls
 import { createClient } from "@supabase/supabase-js";
+//deleteSavedJob also removes the job's pairwise ranking runs
+import { deleteRunsForJob } from "./rankingStore";
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -202,8 +204,9 @@ export async function countAnalysesForJob(jobPostingId: string, userId: string):
 }
 
 //Permanently deletes one of this user's SAVED jobs: its analyses, the resume files and rows
-//those analyses used, and the job posting itself. This is the "Delete job" button in Past jobs,
-//so recruiters who opt in to saving can always remove candidates' data again.
+//those analyses used, its pairwise ranking runs, and the job posting itself. This is the
+//"Delete job" button in Past jobs, so recruiters who opt in to saving can always remove
+//candidates' data again.
 //Returns false if the job doesn't exist or belongs to someone else (nothing is deleted).
 //
 //ORDER MATTERS - files are removed first and the analyses (the only link from a job to its
@@ -292,7 +295,11 @@ export async function deleteSavedJob(jobPostingId: string, userId: string): Prom
         if (resumeError) throw new Error(`Could not delete resumes: ${resumeError.message}`);
     }
 
-    //7. and last the job posting itself
+    //7. the job's pairwise ranking runs and their events (the job_posting_id foreign key
+    //   cascades too, but older databases may not have it; no ranking tables = nothing to do)
+    await deleteRunsForJob(jobPostingId, userId);
+
+    //8. and last the job posting itself
     const { error: deleteJobError } = await supabase
         .from("job_postings")
         .delete()

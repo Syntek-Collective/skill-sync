@@ -31,6 +31,9 @@ import AuthModal from "./components/AuthModal";
 import HistoryModal from "./components/HistoryModal";
 import ApiKeyPanel from "./components/ApiKeyPanel";
 import PrintReport from "./components/PrintReport";
+import PairwiseRanking from "./components/PairwiseRanking";
+import BiasAudit from "./components/BiasAudit";
+import { clearStoredRankingRun, readStoredRankingRun } from "./rankingRun";
 import {
   ApiError,
   analyzeCandidate,
@@ -151,6 +154,16 @@ function App() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [jobHistory, setJobHistory] = useState<JobHistory[]>([]);
+  // a pairwise ranking started before a page refresh: shown (and re-attached) until dismissed
+  // or a new job starts. See components/PairwiseRanking.tsx
+  const [hasRestoredRanking, setHasRestoredRanking] = useState(
+    () => readStoredRankingRun() !== null,
+  );
+
+  const forgetRanking = () => {
+    clearStoredRankingRun();
+    setHasRestoredRanking(false);
+  };
 
   useEffect(() => {
     const checkSession = async () => {
@@ -390,6 +403,7 @@ function App() {
     setCandidates([]);
     setRunError("");
     setHasDownloaded(false);
+    forgetRanking();
   };
 
   // ===== DOWNLOADS =====
@@ -501,11 +515,22 @@ function App() {
             />
 
             {!job ? (
-              <div className="mt-10 flex flex-wrap justify-center gap-6">
-                <Button variant="primary" onClick={() => setIsJobModalOpen(true)}>
-                  Add the job
-                </Button>
-              </div>
+              <>
+                <div className="mt-10 flex flex-wrap justify-center gap-6">
+                  <Button variant="primary" onClick={() => setIsJobModalOpen(true)}>
+                    Add the job
+                  </Button>
+                </div>
+                {hasRestoredRanking && (
+                  <PairwiseRanking
+                    job={null}
+                    candidates={[]}
+                    requirements={null}
+                    openaiKey={openaiKey}
+                    onDismiss={forgetRanking}
+                  />
+                )}
+              </>
             ) : (
               <>
                 <div className="mt-10 flex flex-wrap justify-center gap-4">
@@ -534,6 +559,26 @@ function App() {
                   onDownloadCsv={handleDownloadCsv}
                   onDownloadPdf={handleDownloadPdf}
                 />
+
+                {/* extra views once there are results: pairwise needs 2+, the audit 1+ */}
+                {rankedResults.length >= 2 && (
+                  <PairwiseRanking
+                    job={job}
+                    candidates={candidates}
+                    requirements={requirements}
+                    openaiKey={openaiKey}
+                    isBusy={isRunning}
+                  />
+                )}
+                {rankedResults.length >= 1 && (
+                  <BiasAudit
+                    job={job}
+                    candidates={candidates}
+                    requirements={requirements}
+                    openaiKey={openaiKey}
+                    isBusy={isRunning}
+                  />
+                )}
               </>
             )}
 
@@ -552,7 +597,11 @@ function App() {
               <JobPostingModal
                 isOpen={isJobModalOpen}
                 onClose={() => setIsJobModalOpen(false)}
-                onSave={(newJob) => setJob(newJob)}
+                onSave={(newJob) => {
+                  // a new job starts without the previous job's ranking run
+                  forgetRanking();
+                  setJob(newJob);
+                }}
               />
             )}
 

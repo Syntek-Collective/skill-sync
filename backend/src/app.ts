@@ -7,6 +7,9 @@ import fs from "fs";
 import path from "path";
 import historyRouter from './routes/historyRoutes'
 import analyzeRouter from './routes/analyzeRoutes'
+import rankingRouter from './routes/rankingRoutes'
+import biasAuditRouter from './routes/biasAuditRoutes'
+import { authMiddleware } from './middleware/authMiddleware'
 
 import cors from 'cors'
 
@@ -31,6 +34,12 @@ app.use(cors({
 //those requests because their body is already parsed.
 app.use('/api/analyze', express.json({ limit: '8mb' }));
 
+//rankings (2-10 candidates) and bias audits (1-5) can carry several base64 PDFs in one request.
+//The controllers cap each PDF at 5 MB and all of them together at 30 MB; base64 adds a third.
+//authMiddleware runs FIRST (it only reads the Authorization header), so nobody can make the
+//server read and parse a 41 MB body without a valid login. Their routers rely on this check.
+app.use(['/api/rankings', '/api/bias-audit'], authMiddleware, express.json({ limit: '41mb' }));
+
 //every other route keeps Express's small default limit (100 KB)
 app.use(express.json());
 
@@ -42,6 +51,8 @@ app.get("/api/test", (req: Request, res: Response) => {
 // ===== ROUTES (all routes go here, before the error handler) =====
 app.use('/api/history', historyRouter);
 app.use("/api/analyze", analyzeRouter);
+app.use('/api/rankings', rankingRouter);
+app.use('/api/bias-audit', biasAuditRouter);
 
 // ===== THE REACT APP (production) =====
 // In production (e.g. Railway) this one Express server also serves the built frontend, so the app and
