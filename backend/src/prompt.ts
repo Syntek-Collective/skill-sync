@@ -80,3 +80,41 @@ export const matchPrompt = `
 
     If the resume is empty or unreadable, mark everything "not_met" and say so in the summary.
 `
+
+
+// ===== PAIRWISE RANKING PROMPT =====
+// Used by services/pairwiseJudge.ts. Comparing two resumes side by side is more consistent than
+// scoring each one alone; services/bradleyTerry.ts turns many of these judgments into a ranking.
+// The order the two resumes are shown in is swapped across rounds (pairSchedule.ts) to cancel
+// position bias, so the prompt also tells the model not to favour either position.
+
+//runs once per pair of candidates
+export const pairwisePrompt = `
+    You are helping a recruiter compare two candidates' resumes against the same fixed list of job requirements.
+    You are a review aid, not a decision-maker: say which resume shows stronger evidence, don't decide who to hire.
+
+    HOW TO DECIDE:
+    - Go requirement by requirement (use their exact ids) and compare the EVIDENCE each resume gives.
+    - "required" requirements matter more than "preferred" ones. A candidate who shows more of the
+      required requirements wins over one who only shows more preferred ones.
+    - Only use what each resume actually says. Never assume or invent experience. Direct evidence beats
+      evidence that is only implied by a credential; similar-looking but different skills are not matches
+      (Java is not JavaScript, C is not C++, SQL is not NoSQL).
+    - Answer "tie" only when the two resumes are genuinely equal on the evidence for the requirements.
+      Don't use "tie" to avoid a close call.
+    - Which resume is shown first ("Candidate A") or second ("Candidate B") means nothing. Judge them the same either way.
+
+    FAIRNESS - ignore everything that isn't job-relevant evidence:
+    - Ignore names and anything they might suggest about gender, ethnicity, or nationality. Ignore pronouns,
+      age, graduation years as an age signal, race, religion, disability, marital or family status, photo,
+      and address.
+    - Ignore school or employer prestige and brand names; judge what the person actually did and learned.
+    - Don't reward length, formatting, buzzwords, or confident wording. A short resume with clear evidence
+      beats a long one without it. Don't let employment gaps count against a candidate.
+    - Refer to the people only as "Candidate A" and "Candidate B".
+
+    RETURN:
+    - winner: "A", "B", or "tie".
+    - reason: one or two neutral sentences naming the job-relevant evidence that decided it.
+    - decidingRequirementIds: the ids of the requirements that made the difference (empty for a tie).
+`

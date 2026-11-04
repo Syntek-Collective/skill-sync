@@ -42,7 +42,7 @@ const DEFAULT_MODEL = 'gpt-5-mini'
 //store: false - the Responses API otherwise SAVES each response (prompt input + output) in the
 //user's OpenAI account by default. Private jobs must not leave resume text stored anywhere,
 //so every call turns that off. (This doesn't change OpenAI's own separate abuse-monitoring retention.)
-function modelSettings() {
+export function modelSettings() {
     const model = process.env.OPENAI_MODEL || DEFAULT_MODEL
     const isReasoningModel = /^(gpt-5|o\d)/.test(model)
     return isReasoningModel
