@@ -1,15 +1,5 @@
-import "dotenv/config";
 import { Request, Response, NextFunction } from "express";
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error("Missing Supabase environment variables");
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { verifyAccessToken } from "./verifyToken";
 
 //Checks whether the request has a valid Supabase login token.
 export async function authMiddleware(
@@ -45,18 +35,18 @@ export async function authMiddleware(
         });
     }
 
-    //Ask Supabase Auth if this token belongs to a real long-in user.
-    const { data, error } = await supabase.auth.getUser(token);
+    //Ask Supabase Auth if this token belongs to a real logged-in user.
+    const user = await verifyAccessToken(token);
 
     //If Supabase rejects the token, stop the request.
-    if (error || !data.user) {
+    if (!user) {
         return res.status(401).json({
             error: "Unauthorized",
         });
     }
 
     //Save the verified user where the controller can access it later.
-    res.locals.user = data.user;
+    res.locals.user = user;
 
     next();
 }
